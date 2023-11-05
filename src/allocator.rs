@@ -12,7 +12,7 @@ struct Metadata {
     end: u8
 }
 
-struct Allocator {
+pub struct Allocator {
     start: usize,
     end: usize,
 }
@@ -96,6 +96,5 @@ unsafe impl GlobalAlloc for Allocator {
     }
 }
 
-/// The static global allocator.
 #[global_allocator]
 static GLOBAL_ALLOCATOR: Allocator = Allocator::new(HEAP_START, HEAP_SIZE);

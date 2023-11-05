@@ -1,4 +1,33 @@
+use core::fmt::{Arguments, Write};
 use core::{u8, char, fmt};
+
+use lazy_static::lazy_static;
+use spin::Mutex;
+use x86_64::instructions::interrupts;
+
+lazy_static! {
+    pub static ref PRINT: Mutex<Print> = Mutex::new(Print::new());
+}
+
+#[macro_export]
+macro_rules! print {
+    ($($arg:tt)*) => {
+        $crate::print::_print(format_args!($($arg)*))    
+    };
+}
+
+pub fn _print(args: Arguments) {
+    interrupts::without_interrupts(|| {
+        PRINT.lock().write_fmt(args).unwrap();
+    });
+}
+
+#[macro_export]
+macro_rules! println {
+    ($($arg:tt)*) => {{
+        $crate::print!("{}\n", format_args!($($arg)*));
+    }};
+}
 
 #[derive(Clone, Copy)]
 struct Char {
