@@ -12,8 +12,6 @@ use bootloader::{entry_point, BootInfo};
 use nothingos::allocator::HEAP_SIZE;
 use core::panic::PanicInfo;
 
-entry_point!(main);
-
 fn main(boot_info: &'static BootInfo) -> ! {
     nothingos::init(boot_info); 
     test_main();
@@ -56,7 +54,3 @@ fn many_boxes_long_lived() {
     assert_eq!(*long_lived, 1); // new
 }
 
-#[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
-    nothingos::test_panic_handler(info)
-}

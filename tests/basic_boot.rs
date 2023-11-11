@@ -18,7 +18,3 @@ fn test_println() {
     println!("test_println output");
 }
 
-#[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
-    nothingos::test_panic_handler(info)
-}

@@ -8,6 +8,8 @@
 extern crate spin;
 extern crate alloc;
 extern crate core;
+extern crate multiboot2;
+extern crate lazy_static;
 
 pub mod serial;
 pub mod print;
@@ -19,15 +21,28 @@ pub mod allocator;
 
 use core::panic::PanicInfo;
 
-use bootloader::BootInfo;
+use multiboot2::BootInformation;
 use x86_64::VirtAddr;
 
 use self::interrupt::PICS;
-use self::memory::{BootInfoFrameAllocator, init_heap};
+//use self::memory::{BootInfoFrameAllocator, init_heap};
 use self::print::PRINT;
-
 pub trait Testable {
     fn run(&self) -> ();
+}
+
+
+#[cfg(not(test))]
+#[panic_handler]
+fn panic(info: &PanicInfo) -> ! {
+    println!("{}", info);
+    hlt_loop();
+}
+
+#[cfg(test)]
+#[panic_handler]
+fn panic(info: &PanicInfo) -> ! {
+    test_panic_handler(info)
 }
 
 impl<T> Testable for T
@@ -62,33 +77,25 @@ pub fn hlt_loop() -> ! {
     }
 }
 
-pub fn init(boot_info: &'static BootInfo) {
+pub fn init() {
     PRINT.lock().set_color(&0xb, &0);
     gdt::init();
     interrupt::init_idt();
     unsafe { PICS.lock().initialize() };
     x86_64::instructions::interrupts::enable();
-    let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
+    /*let elf_sections_tag = boot_info.elf_sections()
+    .expect("Elf-sections tag required");
+    let kernel_start = elf_sections_tag.map(|s| s.start_address())
+        .min().unwrap();
+    let kernel_end = elf_sections_tag.map(|s| s.end_address())
+        .max().unwrap();
+    let phys_mem_offset = VirtAddr::new(kernel_start);
     let mut mapper = unsafe { memory::init(phys_mem_offset) };
     let mut frame_allocator = unsafe {
         BootInfoFrameAllocator::init(&boot_info.memory_map)
     };
     init_heap(&mut mapper, &mut frame_allocator)
-        .expect("heap initialization failed");
-}
-
-#[cfg(test)]
-#[no_mangle]
-pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
-    init(boot_info);
-    test_main();
-    loop {}
-}
-
-#[cfg(test)]
-#[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
-    test_panic_handler(info)
+        .expect("heap initialization failed");*/
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

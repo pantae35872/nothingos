@@ -1,4 +1,4 @@
-use x86_64::PhysAddr;
+/*use x86_64::PhysAddr;
 use x86_64::structures::paging::mapper::MapToError;
 use x86_64::structures::paging::{OffsetPageTable, Page, FrameAllocator, Size4KiB, PhysFrame, Mapper, PageTableFlags};
 use x86_64::{
@@ -59,7 +59,6 @@ pub fn init_heap(
     Ok(())
 }
 
-use bootloader::bootinfo::{MemoryMap, MemoryRegionType};
 
 use crate::allocator::{HEAP_START, HEAP_SIZE};
 
@@ -94,4 +93,4 @@ unsafe impl FrameAllocator<Size4KiB> for BootInfoFrameAllocator {
         frame
     }
 }
-
+*/

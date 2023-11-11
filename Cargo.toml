@@ -20,11 +20,17 @@ test-args = [
 ]
 test-success-exit-code = 33
 
+[lib]
+crate-type = ["rlib", "staticlib"]
+
 [dependencies]
-bootloader = { version = "0.9.23", features = ["map_physical_memory"]}
 fmt = "0.1.0"
 spin = "0.9.8"
 x86_64 = "0.14.11"
 pic8259 = "0.10.1"
 pc-keyboard = "0.5.0"
 uart_16550 = "0.2.0"
+multiboot2 = { version = "0.19.0" }
+
+[build-dependencies]
+cargo-emit = "0.2.1"
