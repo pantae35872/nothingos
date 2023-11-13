@@ -7,4 +7,4 @@ rustflags=["--emit=obj"]
 target = "config.json"
 
 [target.'cfg(target_os = "none")']
-runner = "runner"
+runner = "nothingos-builder runner"

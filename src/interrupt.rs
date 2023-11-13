@@ -3,7 +3,7 @@ use pic8259::ChainedPics;
 use spin::Mutex;
 use x86_64::structures::idt::PageFaultErrorCode;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
-use crate::{gdt, hlt_loop};
+use crate::gdt;
 use crate::print;
 use crate::println;
 
@@ -112,5 +112,5 @@ extern "x86-interrupt" fn page_fault_handler(
     println!("Accessed Address: {:?}", Cr2::read());
     println!("Error Code: {:?}", error_code);
     println!("{:#?}", stack_frame);
-    hlt_loop();
+    panic!("PAGE FAULT");
 }

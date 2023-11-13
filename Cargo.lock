@@ -91,6 +91,7 @@ dependencies = [
 name = "nothingos"
 version = "0.1.0"
 dependencies = [
+ "bitflags 2.4.1",
  "cargo-emit",
  "fmt",
  "lazy_static",
