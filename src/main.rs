@@ -9,24 +9,11 @@
 extern crate spin;
 extern crate alloc;
 extern crate core;
+extern crate nothingos;
+extern crate multiboot2;
+extern crate lazy_static;
 
-use core::panic::PanicInfo;
-use alloc::string::String;
-use bootloader::BootInfo;
-use nothingos::println;
-
-#[cfg(not(test))]
-#[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
-    println!("{}", info);
-    loop {}
-}
-
-#[cfg(test)]
-#[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
-    nothingos::test_panic_handler(info)
-}
+use multiboot2::BootInformationHeader;
 
 pub fn hlt_loop() -> ! {
     loop {
@@ -35,11 +22,11 @@ pub fn hlt_loop() -> ! {
 }
 
 #[no_mangle]
-pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
-    nothingos::init(boot_info);
-    let test_string = String::from("ABXA");
-    println!("{}", test_string.as_str());
+pub extern "C" fn start(multiboot_information_address: *const BootInformationHeader) -> ! {
+    nothingos::init(multiboot_information_address);
     #[cfg(test)]
     test_main();
     hlt_loop(); 
 }
+
+

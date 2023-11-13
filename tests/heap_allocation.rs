@@ -5,17 +5,17 @@
 #![reexport_test_harness_main = "test_main"]
 
 extern crate alloc;
+extern crate nothingos;
 
 use alloc::boxed::Box;
 use alloc::vec::Vec;
-use bootloader::{entry_point, BootInfo};
+use multiboot2::BootInformationHeader;
 use nothingos::allocator::HEAP_SIZE;
 use core::panic::PanicInfo;
 
-entry_point!(main);
-
-fn main(boot_info: &'static BootInfo) -> ! {
-    nothingos::init(boot_info); 
+#[no_mangle]
+pub fn start(multiboot_information_address: *const BootInformationHeader) -> ! {
+    nothingos::init(multiboot_information_address); 
     test_main();
     loop {}
 }
@@ -56,7 +56,3 @@ fn many_boxes_long_lived() {
     assert_eq!(*long_lived, 1); // new
 }
 
-#[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
-    nothingos::test_panic_handler(info)
-}
