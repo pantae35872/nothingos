@@ -1,6 +1,6 @@
-use self::paging::PhysicalAddress;
 pub use self::area_frame_allocator::AreaFrameAllocator;
 pub use self::paging::remap_the_kernel;
+use self::paging::PhysicalAddress;
 
 pub mod area_frame_allocator;
 pub mod paging;
@@ -14,16 +14,15 @@ pub const PAGE_SIZE: usize = 4096;
 
 impl Frame {
     fn containing_address(address: usize) -> Frame {
-        Frame{ number: address / PAGE_SIZE }
+        Frame {
+            number: address / PAGE_SIZE,
+        }
     }
     fn start_address(&self) -> PhysicalAddress {
         self.number * PAGE_SIZE
     }
     fn range_inclusive(start: Frame, end: Frame) -> FrameIter {
-        FrameIter {
-            start,
-            end,
-        }
+        FrameIter { start, end }
     }
 }
 
@@ -49,4 +48,4 @@ impl Iterator for FrameIter {
             None
         }
     }
- }
+}

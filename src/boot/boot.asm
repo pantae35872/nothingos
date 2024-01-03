@@ -6,21 +6,17 @@ bits 32
 boot_start:
     mov esp, stack_top
     mov edi, ebx       ; move Multiboot info pointer to edi
-
     call check_multiboot
     call check_cpuid
     call check_long_mode
 
     call set_up_page_tables
     call enable_paging
-
     ; load the 64-bit GDT
     lgdt [gdt64.pointer]
 
     jmp gdt64.code:long_mode_start
 
-    ; print `OK` to screen
-    mov dword [0xb8000], 0x2f4b2f4f
     hlt
 
 check_multiboot:
@@ -157,7 +153,7 @@ p3_table:
 p2_table:
     resb 4096
 stack_bottom:
-    resb 4096 * 16
+    resb 32 * 1024 * 1024
 stack_top:
 
 section .rodata

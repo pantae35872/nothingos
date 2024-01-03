@@ -1,10 +1,12 @@
 #![no_std]
+#![feature(pointer_is_aligned)]
 #![cfg_attr(test, no_main)]
 #![feature(custom_test_frameworks)]
 #![test_runner(crate::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 #![feature(abi_x86_interrupt)]
 #![feature(ptr_internals)]
+#![feature(const_mut_refs)]
 #[macro_use]
 extern crate bitflags;
 
@@ -45,31 +47,38 @@ impl EntryFlags {
     }
 }
 
-extern crate spin;
 extern crate alloc;
 extern crate core;
-extern crate multiboot2;
 extern crate lazy_static;
+extern crate multiboot2;
+extern crate spin;
 
-#[cfg(feature = "test")] 
+#[cfg(feature = "test")]
 pub mod serial;
 
-pub mod print;
-pub mod gdt;
-pub mod memory;
-pub mod interrupt;
-pub mod utils;
 pub mod allocator;
+pub mod gdt;
+pub mod interrupt;
+pub mod memory;
+pub mod port;
+pub mod print;
+pub mod utils;
+pub mod vga;
+pub mod gui;
+pub mod renderer;
+pub mod drive;
+pub mod task;
 
 use core::panic::PanicInfo;
 
-use multiboot2::{ElfSection, BootInformationHeader, BootInformation};
+use multiboot2::{BootInformation, BootInformationHeader, ElfSection};
 use x86_64::registers::model_specific::EferFlags;
 
-use self::allocator::{HEAP_START, HEAP_SIZE};
+use self::allocator::{HEAP_SIZE, HEAP_START, init_heap};
 use self::interrupt::PICS;
 use self::memory::paging::Page;
 use self::print::PRINT;
+use self::vga::{BACKBUFFER_SIZE, BACKBUFFER_START, VGA};
 
 pub trait Testable {
     fn run(&self) -> ();
@@ -78,10 +87,11 @@ pub trait Testable {
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     println!("{}", info);
-    #[cfg(feature = "test")] 
+    #[cfg(feature = "test")]
     {
         test_panic_handler(info);
     }
+    #[cfg(not(feature = "test"))]
     hlt_loop();
 }
 
@@ -90,27 +100,27 @@ where
     T: Fn(),
 {
     fn run(&self) {
-        #[cfg(feature = "test")] 
+        #[cfg(feature = "test")]
         serial_print!("{}...\t", core::any::type_name::<T>());
-        #[cfg(feature = "test")] 
+        #[cfg(feature = "test")]
         self();
-        #[cfg(feature = "test")] 
+        #[cfg(feature = "test")]
         serial_println!("[ok]");
     }
 }
 
 pub fn test_runner(_tests: &[&dyn Testable]) {
-    #[cfg(feature = "test")] 
+    #[cfg(feature = "test")]
     serial_println!("Running {} tests", _tests.len());
-    #[cfg(feature = "test")] 
+    #[cfg(feature = "test")]
     for test in _tests {
         test.run();
     }
-    #[cfg(feature = "test")] 
+    #[cfg(feature = "test")]
     exit_qemu(QemuExitCode::Success);
 }
 
-#[cfg(feature = "test")] 
+#[cfg(feature = "test")]
 pub fn test_panic_handler(info: &PanicInfo) -> ! {
     serial_println!("[failed]\n");
     serial_println!("Error: {}\n", info);
@@ -129,28 +139,43 @@ pub fn init(multiboot_information_address: *const BootInformationHeader) {
     gdt::init();
     interrupt::init_idt();
     unsafe { PICS.lock().initialize() };
-    x86_64::instructions::interrupts::enable();
+    //x86_64::instructions::interrupts::enable();
     let boot_info = unsafe { BootInformation::load(multiboot_information_address).unwrap() };
-    let elf_sections_tag = boot_info.elf_sections()
-    .expect("Elf-sections tag required");
-    let kernel_start = elf_sections_tag.clone().map(|s| s.start_address())
-    .min().unwrap();
-    let kernel_end = elf_sections_tag.clone().map(|s| s.end_address())
-    .max().unwrap();
+    let elf_sections_tag = boot_info.elf_sections().expect("Elf-sections tag required");
+    let kernel_start = elf_sections_tag
+        .clone()
+        .map(|s| s.start_address())
+        .min()
+        .unwrap();
+    let kernel_end = elf_sections_tag
+        .clone()
+        .map(|s| s.end_address())
+        .max()
+        .unwrap();
     let multiboot_start = multiboot_information_address;
     let multiboot_end = multiboot_start as usize + (boot_info.total_size() as usize);
     let mut frame_allocator = memory::area_frame_allocator::AreaFrameAllocator::new(
-    kernel_start as usize, kernel_end as usize, multiboot_start as usize,
-    multiboot_end, boot_info.memory_map_tag().unwrap().memory_areas());
+        kernel_start as usize,
+        kernel_end as usize,
+        multiboot_start as usize,
+        multiboot_end,
+        boot_info.memory_map_tag().unwrap().memory_areas(),
+    );
     enable_nxe_bit();
     let mut active_table = memory::remap_the_kernel(&mut frame_allocator, &boot_info);
     let heap_start_page = Page::containing_address(HEAP_START);
-    let heap_end_page = Page::containing_address(HEAP_START + HEAP_SIZE-1);
+    let heap_end_page = Page::containing_address(HEAP_START + HEAP_SIZE - 1);
 
     for page in Page::range_inclusive(heap_start_page, heap_end_page) {
         active_table.map(page, EntryFlags::WRITABLE, &mut frame_allocator);
     }
- 
+    let backbuffer_start_page = Page::containing_address(BACKBUFFER_START);
+    let backbuffer_end_page = Page::containing_address(BACKBUFFER_START + BACKBUFFER_SIZE - 1);
+
+    for page in Page::range_inclusive(backbuffer_start_page, backbuffer_end_page) {
+        active_table.map(page, EntryFlags::WRITABLE, &mut frame_allocator);
+    }
+    init_heap();
 }
 
 fn enable_nxe_bit() {
@@ -161,7 +186,7 @@ fn enable_nxe_bit() {
     }
 }
 
-#[cfg(feature = "test")] 
+#[cfg(feature = "test")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]
 pub enum QemuExitCode {
@@ -169,7 +194,7 @@ pub enum QemuExitCode {
     Failed = 0x11,
 }
 
-#[cfg(feature = "test")] 
+#[cfg(feature = "test")]
 pub fn exit_qemu(exit_code: QemuExitCode) {
     use x86_64::instructions::port::Port;
 

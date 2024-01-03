@@ -1,5 +1,5 @@
-use crate::EntryFlags;
-use crate::memory::Frame; // needed later
+use crate::memory::Frame;
+use crate::EntryFlags; // needed later
 
 pub struct Entry(u64);
 
@@ -17,7 +17,7 @@ impl Entry {
     pub fn pointed_frame(&self) -> Option<Frame> {
         if self.flags().contains(EntryFlags::PRESENT) {
             Some(Frame::containing_address(
-                self.0 as usize & 0x000fffff_fffff000
+                self.0 as usize & 0x000fffff_fffff000,
             ))
         } else {
             None

@@ -8,3 +8,6 @@ target = "config.json"
 
 [target.'cfg(target_os = "none")']
 runner = "nothingos-builder runner"
+
+[net]
+git-fetch-with-cli = true

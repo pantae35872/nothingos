@@ -4,10 +4,11 @@
 #![test_runner(nothingos::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
-use nothingos::{print, println};
+use multiboot2::BootInformationHeader;
 
 #[no_mangle]
-pub fn start(boot_info: u8) -> ! {
+pub fn start(multiboot_information_address: *const BootInformationHeader) -> ! {
+    nothingos::init(multiboot_information_address);
     test_main();
     loop {}
 }
