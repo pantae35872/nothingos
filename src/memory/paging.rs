@@ -113,7 +113,7 @@ impl ActivePageTable {
     pub fn with<F>(
         &mut self,
         table: &mut InactivePageTable,
-        temporary_page: &mut temporary_page::TemporaryPage, // new
+        temporary_page: &mut temporary_page::TemporaryPage, 
         f: F,
     ) where
         F: FnOnce(&mut Mapper),
@@ -124,20 +124,16 @@ impl ActivePageTable {
             let backup =
                 Frame::containing_address(level_4_table_frame.start_address().as_u64() as usize);
 
-            // map temporary_page to current p4 table
             let p4_table = temporary_page.map_table_frame(backup.clone(), self);
 
-            // overwrite recursive mapping
             self.p4_mut()[511].set(
                 table.p4_frame.clone(),
                 EntryFlags::PRESENT | EntryFlags::WRITABLE,
             );
             tlb::flush_all();
 
-            // execute f in the new context
             f(self);
 
-            // restore recursive mapping to original p4 table
             p4_table[511].set(backup, EntryFlags::PRESENT | EntryFlags::WRITABLE);
             tlb::flush_all();
         }
@@ -179,10 +175,8 @@ impl ActivePageTable {
         let huge_page = || {
             p3.and_then(|p3| {
                 let p3_entry = &p3[page.p3_index()];
-                // 1GiB page?
                 if let Some(start_frame) = p3_entry.pointed_frame() {
                     if p3_entry.flags().contains(EntryFlags::HUGE_PAGE) {
-                        // address must be 1GiB aligned
                         assert!(start_frame.number % (ENTRY_COUNT * ENTRY_COUNT) == 0);
                         return Some(Frame {
                             number: start_frame.number
@@ -193,10 +187,8 @@ impl ActivePageTable {
                 }
                 if let Some(p2) = p3.next_table(page.p3_index()) {
                     let p2_entry = &p2[page.p2_index()];
-                    // 2MiB page?
                     if let Some(start_frame) = p2_entry.pointed_frame() {
                         if p2_entry.flags().contains(EntryFlags::HUGE_PAGE) {
-                            // address must be 2MiB aligned
                             assert!(start_frame.number % ENTRY_COUNT == 0);
                             return Some(Frame {
                                 number: start_frame.number + page.p1_index(),
@@ -247,9 +239,7 @@ impl InactivePageTable {
     ) -> InactivePageTable {
         {
             let table = temporary_page.map_table_frame(frame.clone(), active_table);
-            // now we are able to zero the table
             table.zero();
-            // set up recursive mapping for the table
             table[511].set(frame.clone(), EntryFlags::PRESENT | EntryFlags::WRITABLE);
         }
         temporary_page.unmap(active_table);
@@ -297,12 +287,10 @@ where
         let video_start = Frame::containing_address(0xA0000);
         let video_end = Frame::containing_address(0xAF000);
 
-        // identity map the VGA text buffer
         for frame in Frame::range_inclusive(video_start, video_end) {
             mapper.identity_map(frame, EntryFlags::WRITABLE, allocator);
         }
 
-        // identity map the multiboot info structure
         let multiboot_start = Frame::containing_address(boot_info.start_address());
         let multiboot_end = Frame::containing_address(boot_info.end_address() - 1);
         for frame in Frame::range_inclusive(multiboot_start, multiboot_end) {

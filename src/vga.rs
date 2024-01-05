@@ -2,12 +2,11 @@ use core::ptr;
 use core::ptr::write_volatile;
 
 use lazy_static::lazy_static;
-use spin::Mutex;
 
 pub const BACKBUFFER_START: usize = 0o_000_100_000_000_0000;
-pub const BACKBUFFER_SIZE: usize = 0xFA000; // 100 KiB
+pub const BACKBUFFER_SIZE: usize = 0xFA000;
 
-use crate::port::Port8Bit;
+use crate::utils::port::Port8Bit;
 
 pub struct Vga {
     misc_port: Port8Bit,

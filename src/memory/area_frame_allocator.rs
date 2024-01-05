@@ -55,37 +55,29 @@ impl<'a> AreaFrameAllocator<'a> {
 impl<'a> FrameAllocator for AreaFrameAllocator<'a> {
     fn allocate_frame(&mut self) -> Option<Frame> {
         if let Some(area) = self.current_area {
-            // "Clone" the frame to return it if it's free. Frame doesn't
-            // implement Clone, but we can construct an identical frame.
             let frame = Frame {
                 number: self.next_free_frame.number,
             };
 
-            // the last frame of the current area
             let current_area_last_frame = {
                 let address = area.start_address() + area.size() - 1;
                 Frame::containing_address(address as usize)
             };
 
             if frame > current_area_last_frame {
-                // all frames of current area are used, switch to next area
                 self.choose_next_area();
             } else if frame >= self.kernel_start && frame <= self.kernel_end {
-                // `frame` is used by the kernel
                 self.next_free_frame = Frame {
                     number: self.kernel_end.number + 1,
                 };
             } else if frame >= self.multiboot_start && frame <= self.multiboot_end {
-                // `frame` is used by the multiboot information structure
                 self.next_free_frame = Frame {
                     number: self.multiboot_end.number + 1,
                 };
             } else {
-                // frame is unused, increment `next_free_frame` and return it
                 self.next_free_frame.number += 1;
                 return Some(frame);
             }
-            //`frame` was not valid, try it again with the updated `next_free_frame`
             self.allocate_frame()
         } else {
             None

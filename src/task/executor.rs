@@ -49,9 +49,8 @@ impl Executor {
             let waker = self.create_waker(&task).into();
             let mut context = Context::from_waker(&waker);
             match task.as_mut().poll(&mut context) {
-                Poll::Ready(()) => {} // task done
+                Poll::Ready(()) => {}
                 Poll::Pending => {
-                    // add task to pending_tasks and wait for wakeup
                     let task_id = Self::task_id(&task);
                     if self.pending_tasks.insert(task_id, task).is_some() {
                         panic!("Task with same ID already in pending_tasks");
@@ -61,11 +60,6 @@ impl Executor {
         }
     }
 
-    /// Invoke wakers for tasks woken by interrupts
-    ///
-    /// The interrupt handlers can't invoke the waker directly since wakers
-    /// might execute arbitrary code, e.g. allocate, which should not be done
-    /// in interrupt handlers to avoid deadlocks.
     fn apply_interrupt_wakeups(&mut self) {
         while let Ok(waker) = interrupt_wakeups().pop() {
             waker.wake();
@@ -88,7 +82,6 @@ impl Executor {
             if interrupt_wakeups().is_empty() {
                 x86_64::instructions::interrupts::enable_and_hlt();
             } else {
-                // there were some new wakeups -> continue execution
                 x86_64::instructions::interrupts::enable();
             }
         }
