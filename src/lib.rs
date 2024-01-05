@@ -60,13 +60,11 @@ pub mod allocator;
 pub mod gdt;
 pub mod interrupt;
 pub mod memory;
-pub mod port;
 pub mod print;
 pub mod utils;
 pub mod vga;
 pub mod gui;
 pub mod renderer;
-pub mod drive;
 pub mod task;
 pub mod driver;
 
@@ -79,7 +77,7 @@ use self::allocator::{HEAP_SIZE, HEAP_START, init_heap};
 use self::interrupt::PICS;
 use self::memory::paging::Page;
 use self::print::PRINT;
-use self::vga::{BACKBUFFER_SIZE, BACKBUFFER_START, VGA};
+use self::vga::{BACKBUFFER_SIZE, BACKBUFFER_START};
 
 pub trait Testable {
     fn run(&self) -> ();

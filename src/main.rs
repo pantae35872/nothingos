@@ -13,30 +13,16 @@ extern crate multiboot2;
 extern crate nothingos;
 extern crate spin;
 
-use core::cell::RefCell;
-
-use alloc::boxed::Box;
-use alloc::rc::Rc;
-use alloc::string::{String, ToString};
-use alloc::vec::Vec;
-use alloc::vec;
+use alloc::string::String;
 use multiboot2::BootInformationHeader;
-use nothingos::drive::ATADrive;
-use nothingos::gui::{RootWidget, Widget, WindowWidget};
-use nothingos::print::PRINT;
+use nothingos::driver::storage::ata_driver::ATADrive;
+use nothingos::task::executor::Executor;
 use nothingos::{println, driver};
-use nothingos::task::executor::{self, Executor};
-use nothingos::vga::VGA;
-use x86_64::instructions::port;
 
 pub fn hlt_loop() -> ! {
     loop {
         x86_64::instructions::hlt();
     }
-}
-
-fn stack_overflow() {
-    stack_overflow();
 }
 
 #[no_mangle]
@@ -60,5 +46,4 @@ pub fn start(multiboot_information_address: *const BootInformationHeader) -> ! {
 
     #[cfg(test)]
     test_main();
-    hlt_loop();
 }

@@ -51,10 +51,8 @@ impl Mapper {
                 }
                 if let Some(p2) = p3.next_table(page.p3_index()) {
                     let p2_entry = &p2[page.p2_index()];
-                    // 2MiB page?
                     if let Some(start_frame) = p2_entry.pointed_frame() {
                         if p2_entry.flags().contains(EntryFlags::HUGE_PAGE) {
-                            // address must be 2MiB aligned
                             assert!(start_frame.number % ENTRY_COUNT == 0);
                             return Some(Frame {
                                 number: start_frame.number + page.p1_index(),
@@ -118,7 +116,6 @@ impl Mapper {
         let frame = p1[page.p1_index()].pointed_frame().unwrap();
         p1[page.p1_index()].set_unused();
         tlb::flush(VirtAddr::new(page.start_address() as u64));
-        // TODO free p(1,2,3) table if empty
         allocator.deallocate_frame(frame);
     }
 }
