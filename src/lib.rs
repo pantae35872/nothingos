@@ -68,6 +68,7 @@ pub mod gui;
 pub mod renderer;
 pub mod drive;
 pub mod task;
+pub mod driver;
 
 use core::panic::PanicInfo;
 
@@ -139,7 +140,6 @@ pub fn init(multiboot_information_address: *const BootInformationHeader) {
     gdt::init();
     interrupt::init_idt();
     unsafe { PICS.lock().initialize() };
-    //x86_64::instructions::interrupts::enable();
     let boot_info = unsafe { BootInformation::load(multiboot_information_address).unwrap() };
     let elf_sections_tag = boot_info.elf_sections().expect("Elf-sections tag required");
     let kernel_start = elf_sections_tag
@@ -176,6 +176,8 @@ pub fn init(multiboot_information_address: *const BootInformationHeader) {
         active_table.map(page, EntryFlags::WRITABLE, &mut frame_allocator);
     }
     init_heap();
+    driver::init();
+    task::init();
 }
 
 fn enable_nxe_bit() {

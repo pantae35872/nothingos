@@ -9,5 +9,9 @@ target = "config.json"
 [target.'cfg(target_os = "none")']
 runner = "nothingos-builder runner"
 
+[http]
+check-revoke = false  # Disable certificate revocation check
+cainfo = "/etc/ssl/certs/ca-bundle.crt"
+
 [net]
 git-fetch-with-cli = true

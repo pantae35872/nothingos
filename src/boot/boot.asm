@@ -153,7 +153,7 @@ p3_table:
 p2_table:
     resb 4096
 stack_bottom:
-    resb 32 * 1024 * 1024
+    resb 16 * 1024 * 1024
 stack_top:
 
 section .rodata

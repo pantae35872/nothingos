@@ -1,5 +1,5 @@
+use crate::driver;
 use crate::gdt;
-use crate::print;
 use crate::println;
 use lazy_static::lazy_static;
 use pic8259::ChainedPics;
@@ -12,6 +12,9 @@ lazy_static! {
     static ref IDT: InterruptDescriptorTable = {
         let mut idt = InterruptDescriptorTable::new();
         idt.breakpoint.set_handler_fn(breakpoint_handle);
+        idt.page_fault.set_handler_fn(page_fault_handler);
+        idt.overflow.set_handler_fn(overflow_handler);
+        idt.divide_error.set_handler_fn(divide_handler);
         unsafe {
             idt.double_fault
                 .set_handler_fn(double_fault_handler)
@@ -19,7 +22,8 @@ lazy_static! {
         }
         idt[InterruptIndex::Timer.as_usize()].set_handler_fn(timer_interrupt_handler);
         idt[InterruptIndex::Keyboard.as_usize()].set_handler_fn(keyboard_interrupt_handler);
-        idt.page_fault.set_handler_fn(page_fault_handler);
+        idt[InterruptIndex::PrimaryATA.as_usize()].set_handler_fn(primary_ata_interrupt_handler);
+        idt[InterruptIndex::SecondaryATA.as_usize()].set_handler_fn(secondary_ata_interrupt_handler);
         idt
     };
 }
@@ -35,6 +39,8 @@ pub static PICS: Mutex<ChainedPics> =
 pub enum InterruptIndex {
     Timer = PIC_1_OFFSET,
     Keyboard,
+    PrimaryATA = PIC_1_OFFSET + 14,
+    SecondaryATA = PIC_1_OFFSET + 15, 
 }
 
 impl InterruptIndex {
@@ -51,6 +57,15 @@ pub fn init_idt() {
     IDT.load();
 }
 
+extern "x86-interrupt" fn divide_handler(stack_frame: InterruptStackFrame) {
+    println!("EXCEPTION: DIVISION\n{:#?}", stack_frame);
+}
+
+extern "x86-interrupt" fn overflow_handler(stack_frame: InterruptStackFrame) {
+    println!("EXCEPTION: OVERFLOW\n{:#?}", stack_frame);
+}
+
+
 extern "x86-interrupt" fn breakpoint_handle(stack_frame: InterruptStackFrame) {
     println!("EXCEPTION: BREAKPOINT\n{:#?}", stack_frame);
 }
@@ -63,7 +78,8 @@ extern "x86-interrupt" fn double_fault_handler(
 }
 
 extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
-    print!(".");
+    driver::timer::tick();
+
     unsafe {
         PICS.lock()
             .notify_end_of_interrupt(InterruptIndex::Timer.as_u8());
@@ -71,31 +87,31 @@ extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFr
 }
 
 extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStackFrame) {
-    use pc_keyboard::{layouts, DecodedKey, HandleControl, Keyboard, ScancodeSet1};
-    lazy_static! {
-        static ref KEYBOARD: Mutex<Keyboard<layouts::Us104Key, ScancodeSet1>> = Mutex::new(
-            Keyboard::new(layouts::Us104Key, ScancodeSet1, HandleControl::Ignore)
-        );
-    }
-
-    let mut keyboard = KEYBOARD.lock();
     let mut port = Port::new(0x60);
-
     let scancode: u8 = unsafe { port.read() };
-    if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
-        if let Some(key) = keyboard.process_keyevent(key_event) {
-            match key {
-                DecodedKey::Unicode(character) => print!("{}", character),
-                DecodedKey::RawKey(key) => print!("{:?}", key),
-            }
-        }
-    }
+
+    crate::driver::keyboard::keyboard_scancode(scancode);
 
     unsafe {
         PICS.lock()
             .notify_end_of_interrupt(InterruptIndex::Keyboard.as_u8());
     }
 }
+
+extern "x86-interrupt" fn primary_ata_interrupt_handler(_stack_frame: InterruptStackFrame) {
+    unsafe {
+        PICS.lock()
+            .notify_end_of_interrupt(InterruptIndex::PrimaryATA.as_u8());
+    }
+}
+
+extern "x86-interrupt" fn secondary_ata_interrupt_handler(_stack_frame: InterruptStackFrame) {
+    unsafe {
+        PICS.lock()
+            .notify_end_of_interrupt(InterruptIndex::SecondaryATA.as_u8());
+    }
+}
+
 
 extern "x86-interrupt" fn page_fault_handler(
     stack_frame: InterruptStackFrame,
