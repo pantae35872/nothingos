@@ -11,11 +11,10 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 use multiboot2::BootInformationHeader;
 use nothingos::allocator::HEAP_SIZE;
-use core::panic::PanicInfo;
 
 #[no_mangle]
 pub fn start(multiboot_information_address: *const BootInformationHeader) -> ! {
-    nothingos::init(multiboot_information_address); 
+    nothingos::init(multiboot_information_address);
     test_main();
     loop {}
 }
@@ -55,4 +54,3 @@ fn many_boxes_long_lived() {
     }
     assert_eq!(*long_lived, 1); // new
 }
-

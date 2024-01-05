@@ -1,5 +1,5 @@
 use core::fmt::{Arguments, Write};
-use core::{u8, char, fmt};
+use core::{char, fmt, u8};
 
 use lazy_static::lazy_static;
 use spin::Mutex;
@@ -12,7 +12,7 @@ lazy_static! {
 #[macro_export]
 macro_rules! print {
     ($($arg:tt)*) => {
-        $crate::print::_print(format_args!($($arg)*))    
+        $crate::print::_print(format_args!($($arg)*))
     };
 }
 
@@ -32,20 +32,26 @@ macro_rules! println {
 #[derive(Clone, Copy)]
 struct Char {
     charactor: u8,
-    color: u8
+    color: u8,
 }
 
 impl Char {
     pub fn new(charactor: char, color: u8) -> Self {
-        Self { charactor: charactor as u8, color }
+        Self {
+            charactor: charactor as u8,
+            color,
+        }
     }
 
-    pub fn empty() -> Self{
-        Self { charactor: b' ', color: 0 }
+    pub fn empty() -> Self {
+        Self {
+            charactor: b' ',
+            color: 0,
+        }
     }
 }
 
-const NUM_COL: usize = 80; 
+const NUM_COL: usize = 80;
 const NUM_ROW: usize = 25;
 const BUFFER_SIZE: usize = NUM_COL * NUM_ROW;
 const BUFFER_ADRESS: *mut Char = 0xb8000 as *mut Char;
@@ -54,7 +60,7 @@ pub struct Print {
     col: i32,
     row: i32,
     color: u8,
-    buffer: [Char; BUFFER_SIZE]
+    buffer: [Char; BUFFER_SIZE],
 }
 
 impl Print {
@@ -63,14 +69,17 @@ impl Print {
             col: 0,
             row: 0,
             color: 0,
-            buffer: [Char { charactor: 0, color: 0}; BUFFER_SIZE]
+            buffer: [Char {
+                charactor: 0,
+                color: 0,
+            }; BUFFER_SIZE],
         };
     }
 
     pub fn set_color(&mut self, foreground: &u8, background: &u8) {
         self.color = foreground + (background << 4);
     }
-    
+
     pub fn clear_row(&mut self, row: i32) {
         for col in 0..NUM_COL {
             self.buffer[col + NUM_COL * row as usize] = Char::empty();
@@ -81,7 +90,7 @@ impl Print {
         self.col = 0;
 
         if self.row < (NUM_ROW - 1) as i32 {
-            self.row+=1;
+            self.row += 1;
             return;
         }
 
@@ -89,7 +98,7 @@ impl Print {
             for col in 0..NUM_COL {
                 let charactor = self.buffer[col + NUM_COL * row];
                 self.buffer[col + NUM_COL * (row - 1)] = charactor;
-            } 
+            }
         }
 
         self.clear_row((NUM_COL - 1) as i32);
@@ -105,9 +114,10 @@ impl Print {
             self.print_newline();
         }
 
-        self.buffer[self.col as usize + NUM_COL * self.row as usize] = Char::new(*charactor, self.color);
+        self.buffer[self.col as usize + NUM_COL * self.row as usize] =
+            Char::new(*charactor, self.color);
 
-        self.col+=1;
+        self.col += 1;
     }
 
     pub fn print_str(&mut self, string: &str) {
@@ -121,13 +131,13 @@ impl Print {
                 (*BUFFER_ADRESS.offset(i as isize)).charactor = v.charactor;
                 (*BUFFER_ADRESS.offset(i as isize)).color = v.color
             }
-        };
+        }
     }
 }
 
 impl fmt::Write for Print {
     fn write_str(&mut self, s: &str) -> fmt::Result {
-       self.print_str(s);
-       Ok(())
+        self.print_str(s);
+        Ok(())
     }
 }

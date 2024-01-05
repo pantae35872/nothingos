@@ -1,7 +1,7 @@
+use crate::memory::FrameAllocator;
+use crate::EntryFlags;
 use core::marker::PhantomData;
 use core::ops::{Index, IndexMut};
-use crate::EntryFlags;
-use crate::memory::FrameAllocator;
 
 use super::{Entry, ENTRY_COUNT};
 
@@ -12,7 +12,10 @@ pub struct Table<L: TableLevel> {
     level: PhantomData<L>,
 }
 
-impl<L> Table<L> where L: TableLevel {
+impl<L> Table<L>
+where
+    L: TableLevel,
+{
     pub fn zero(&mut self) {
         for entry in self.entries.iter_mut() {
             entry.set_unused();
@@ -20,10 +23,14 @@ impl<L> Table<L> where L: TableLevel {
     }
 }
 
-impl<L> Table<L> where L: HierarchicalLevel {
+impl<L> Table<L>
+where
+    L: HierarchicalLevel,
+{
     fn next_table_address(&self, index: usize) -> Option<usize> {
         let entry_flags = self[index].flags();
-        if entry_flags.contains(EntryFlags::PRESENT) && !entry_flags.contains(EntryFlags::HUGE_PAGE) {
+        if entry_flags.contains(EntryFlags::PRESENT) && !entry_flags.contains(EntryFlags::HUGE_PAGE)
+        {
             let table_address = self as *const _ as usize;
             Some((table_address << 9) | (index << 12))
         } else {
@@ -41,15 +48,19 @@ impl<L> Table<L> where L: HierarchicalLevel {
             .map(|address| unsafe { &mut *(address as *mut _) })
     }
 
-    pub fn next_table_create<A>(&mut self,
-                                index: usize,
-                                allocator: &mut A)
-                                -> &mut Table<L::NextLevel>
-        where A: FrameAllocator
+    pub fn next_table_create<A>(
+        &mut self,
+        index: usize,
+        allocator: &mut A,
+    ) -> &mut Table<L::NextLevel>
+    where
+        A: FrameAllocator,
     {
         if self.next_table(index).is_none() {
-            assert!(!self.entries[index].flags().contains(EntryFlags::HUGE_PAGE),
-                    "mapping code does not support huge pages");
+            assert!(
+                !self.entries[index].flags().contains(EntryFlags::HUGE_PAGE),
+                "mapping code does not support huge pages"
+            );
             let frame = allocator.allocate_frame().expect("no frames available");
             self.entries[index].set(frame, EntryFlags::PRESENT | EntryFlags::WRITABLE);
             self.next_table_mut(index).unwrap().zero();
@@ -58,7 +69,10 @@ impl<L> Table<L> where L: HierarchicalLevel {
     }
 }
 
-impl<L> Index<usize> for Table<L> where L: TableLevel {
+impl<L> Index<usize> for Table<L>
+where
+    L: TableLevel,
+{
     type Output = Entry;
 
     fn index(&self, index: usize) -> &Entry {
@@ -66,7 +80,10 @@ impl<L> Index<usize> for Table<L> where L: TableLevel {
     }
 }
 
-impl<L> IndexMut<usize> for Table<L> where L: TableLevel {
+impl<L> IndexMut<usize> for Table<L>
+where
+    L: TableLevel,
+{
     fn index_mut(&mut self, index: usize) -> &mut Entry {
         &mut self.entries[index]
     }

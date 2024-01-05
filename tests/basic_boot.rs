@@ -6,11 +6,12 @@
 
 extern crate nothingos;
 
-use core::panic::PanicInfo;
+use multiboot2::BootInformationHeader;
 use nothingos::println;
 
 #[no_mangle]
-pub extern "C" fn start() -> ! {
+pub fn start(multiboot_information_address: *const BootInformationHeader) -> ! {
+    nothingos::init(multiboot_information_address);
     test_main();
     loop {}
 }
@@ -19,4 +20,3 @@ pub extern "C" fn start() -> ! {
 fn test_println() {
     println!("test_println output");
 }
-
