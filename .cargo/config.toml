@@ -4,10 +4,10 @@ build-std = ["core", "alloc", "compiler_builtins"]
 
 [build]
 rustflags=["--emit=obj"]
-target = "config.json"
+target = "x86_64.json"
 
 [target.'cfg(target_os = "none")']
-runner = "nothingos-builder runner"
+runner = "osc runner"
 
 [http]
 check-revoke = false  # Disable certificate revocation check
