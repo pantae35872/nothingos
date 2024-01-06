@@ -42,8 +42,8 @@ pub fn start(multiboot_information_address: *const BootInformationHeader) -> ! {
     executor.spawn(driver::timer::timer_task());
     executor.spawn(driver::keyboard::keyboard_task());
     
-    executor.run();
-
     #[cfg(test)]
     test_main();
+   
+    executor.run();
 }

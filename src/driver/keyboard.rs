@@ -18,9 +18,6 @@ pub fn init() {
         .expect("failed to init scancode queue");
 }
 
-/// Called by the keyboard interrupt handler
-///
-/// Must not block (including spinlocks).
 pub(crate) fn keyboard_scancode(scancode: u8) {
     let scancode_queue = SCANCODE_QUEUE
         .try_get()
@@ -46,7 +43,6 @@ impl Future for NextScancode {
         let scancodes = SCANCODE_QUEUE
             .try_get()
             .expect("scancode queue not initialized");
-        // fast path
         if let Ok(scancode) = scancodes.pop() {
             return Poll::Ready(scancode);
         }

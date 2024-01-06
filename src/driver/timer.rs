@@ -10,9 +10,6 @@ use futures_util::task::AtomicWaker;
 static TICKS: AtomicU64 = AtomicU64::new(0);
 static WAKER: AtomicWaker = AtomicWaker::new();
 
-/// Called by the timer interrupt handler
-///
-/// Must not block (including spinlocks).
 pub(crate) fn tick() {
     TICKS.fetch_add(1, Ordering::Release);
     if let Some(waker) = WAKER.take() {
