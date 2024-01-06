@@ -9,9 +9,3 @@ target = "x86_64.json"
 [target.'cfg(target_os = "none")']
 runner = "osc runner"
 
-[http]
-check-revoke = false  # Disable certificate revocation check
-cainfo = "/etc/ssl/certs/ca-bundle.crt"
-
-[net]
-git-fetch-with-cli = true
