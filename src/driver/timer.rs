@@ -47,6 +47,5 @@ impl Future for NextTick {
 pub async fn timer_task() {
     loop {
         next_tick().await;
-        print!(".");
     }
 }

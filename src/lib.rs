@@ -67,6 +67,7 @@ pub mod gui;
 pub mod renderer;
 pub mod task;
 pub mod driver;
+pub mod filesystem;
 
 use core::panic::PanicInfo;
 

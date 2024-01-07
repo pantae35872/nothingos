@@ -32,11 +32,7 @@ impl ATADrive {
     }
 
     pub async fn identify(&mut self) {
-        if self.master {
-            self.device_port.write(0xA0);
-        } else {
-            self.device_port.write(0xB0);
-        }
+        self.device_port.write(inline_if!(self.master, 0xA0, 0xB0));
     
         self.control_port.write(0);
 
@@ -47,11 +43,8 @@ impl ATADrive {
         if status == 0xFF {
             return;
         }
-        if self.master {
-            self.device_port.write(0xA0);
-        } else {
-            self.device_port.write(0xB0);
-        }
+
+        self.device_port.write(inline_if!(self.master, 0xA0, 0xB0));
 
         self.sector_count_port.write(0);
         self.lba_low_port.write(0);
@@ -144,9 +137,9 @@ impl ATADrive {
         for i in (0..count).step_by(2) {
             let wdata = self.data_port.read();
             
-            data[i] = (wdata & 0x00FF) as u8;
+            data[i] = (wdata & 0xFF) as u8;
             if i+1 < count {
-                data[i+1] = ((wdata >> 8) & 0x00FF) as u8;
+                data[i+1] = ((wdata >> 8) & 0xFF) as u8;
             }
         }
         
@@ -155,7 +148,18 @@ impl ATADrive {
         }
     }
 
-    pub async fn flush() {
-         
+    pub async fn flush(&mut self) {
+        self.device_port.write(inline_if!(self.master, 0xE0, 0xF0)); 
+        self.command_port.write(0xE7);
+    
+        let mut status = self.command_port.read();
+        while ((status & 0x80) == 0x80) && ((status & 0x01) != 0x01) {
+            status = self.command_port.read();
+        }
+
+        if (status & 0x01) != 0 {
+            println!("DRIVE ERROR");
+            return;
+        }
     }
 }

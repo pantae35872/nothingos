@@ -16,6 +16,7 @@ extern crate spin;
 use alloc::string::String;
 use multiboot2::BootInformationHeader;
 use nothingos::driver::storage::ata_driver::ATADrive;
+use nothingos::filesystem::partition::msdos_partition::read_partitions_ata;
 use nothingos::task::executor::Executor;
 use nothingos::{println, driver};
 
@@ -34,9 +35,8 @@ pub fn start(multiboot_information_address: *const BootInformationHeader) -> ! {
         drive.identify().await;
         //let msg = "Hello from write".as_bytes();
         //drive.write28(0, msg, msg.len()).await;
-        let mut msg = [0u8; 16];
-        drive.read28(0, &mut msg, 16).await;
-        println!("{}", String::from_utf8_lossy(&msg));
+        //drive.flush();
+        read_partitions_ata(&mut drive).await;
     });
     
     executor.spawn(driver::timer::timer_task());
