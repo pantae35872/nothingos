@@ -1,3 +1,6 @@
+use alloc::boxed::Box;
+
+use crate::utils::oserror::OSError;
 use crate::utils::port::{Port8Bit, Port16Bit};
 use crate::{println,inline_if};
 
@@ -12,7 +15,9 @@ pub struct ATADrive {
     command_port: Port8Bit,
     control_port: Port8Bit,
     master: bool,
-    bytes_per_sector: usize
+    bytes_per_sector: usize,
+    hpc: u16,
+    sph: u16
 }
 
 impl ATADrive {
@@ -28,7 +33,17 @@ impl ATADrive {
             , control_port: Port8Bit::new(port_base + 0x206)
             , master
             , bytes_per_sector: 512
+            , hpc: 0
+            , sph: 0
         }
+    }
+
+    pub fn get_hpc(&self) -> u16 {
+        self.hpc
+    }
+
+    pub fn get_sph(&self) -> u16 {
+        self.sph
     }
 
     pub async fn identify(&mut self) {
@@ -63,7 +78,6 @@ impl ATADrive {
         }
 
         if (status & 0x01) != 0 {
-            println!("DRIVE ERROR");
             return;
         }
         
@@ -79,11 +93,14 @@ impl ATADrive {
         let drive_size_in_gb_b2 = (drive_size_in_sectors * 512) / (1 << 30);
 
         println!("Drive size base 10: {}, base 2: {}", drive_size_in_gb_b10, drive_size_in_gb_b2);
+
+        self.hpc = (data[6] & 0xFF) as u16;
+        self.sph = (data[12] & 0xFF) as u16;
     }
 
-    pub async fn write28(&mut self, sector: u32, data: &[u8], count: usize) {
+    pub async fn write28(&mut self, sector: u32, data: &[u8], count: usize) -> Result<(), Box<OSError>> {
         if (sector & 0xF0000000) != 0 || count > self.bytes_per_sector {
-            return;
+            return Err(Box::new(OSError::new("Drive error")));
         }
 
         self.device_port.write((inline_if!(self.master, 0xE0, 0xF0) | ((sector & 0x0F000000) >> 24)) as u8); 
@@ -107,11 +124,12 @@ impl ATADrive {
         for _i in ((count+(count % 2))..self.bytes_per_sector).step_by(2) {
             self.data_port.write(0x0000);
         }
+        return Ok(());
     }
 
-    pub async fn read28(&mut self, sector: u32, data: &mut [u8], count: usize) { 
+    pub async fn read28(&mut self, sector: u32, data: &mut [u8], count: usize) -> Result<(), Box<OSError>> { 
         if (sector & 0xF0000000) != 0 || count > self.bytes_per_sector {
-            return;
+            return Err(Box::new(OSError::new("Drive error")));
         }
 
         self.device_port.write((inline_if!(self.master, 0xE0, 0xF0) | ((sector & 0x0F000000) >> 24)) as u8); 
@@ -130,8 +148,7 @@ impl ATADrive {
         }
 
         if (status & 0x01) != 0 {
-            println!("DRIVE ERROR");
-            return;
+            return Err(Box::new(OSError::new("Drive error")));
         }
         
         for i in (0..count).step_by(2) {
@@ -146,9 +163,10 @@ impl ATADrive {
         for _i in ((count+(count % 2))..self.bytes_per_sector).step_by(2) {
             self.data_port.read();
         }
+        return Ok(());
     }
 
-    pub async fn flush(&mut self) {
+    pub async fn flush(&mut self) -> Result<(), Box<OSError>> {
         self.device_port.write(inline_if!(self.master, 0xE0, 0xF0)); 
         self.command_port.write(0xE7);
     
@@ -158,8 +176,8 @@ impl ATADrive {
         }
 
         if (status & 0x01) != 0 {
-            println!("DRIVE ERROR");
-            return;
+            return Err(Box::new(OSError::new("Drive error")));
         }
+        return Ok(());
     }
 }

@@ -1,5 +1,6 @@
 pub mod converter;
 pub mod port;
+pub mod oserror;
 
 #[macro_export]
 macro_rules! inline_if {
@@ -10,4 +11,14 @@ macro_rules! inline_if {
             $false_expr
         }
     };
+}
+
+pub fn floorf64(x: f64) -> f64 {
+    let integer_part = x as i64; 
+
+    if x >= 0.0 || x == integer_part as f64 {
+        integer_part as f64
+    } else {
+        (integer_part - 1) as f64
+    }
 }
