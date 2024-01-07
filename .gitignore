@@ -2,5 +2,6 @@ target/
 vendor/
 iso/boot/kernel.bin
 disk.img
+msdos.disk
 os.iso
 Cargo.lock
