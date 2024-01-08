@@ -1,6 +1,6 @@
 #[derive(Debug)]
 pub struct OSError {
-    message: &'static str 
+    message: &'static str,
 }
 
 impl OSError {

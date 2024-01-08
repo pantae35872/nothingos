@@ -23,7 +23,8 @@ lazy_static! {
         idt[InterruptIndex::Timer.as_usize()].set_handler_fn(timer_interrupt_handler);
         idt[InterruptIndex::Keyboard.as_usize()].set_handler_fn(keyboard_interrupt_handler);
         idt[InterruptIndex::PrimaryATA.as_usize()].set_handler_fn(primary_ata_interrupt_handler);
-        idt[InterruptIndex::SecondaryATA.as_usize()].set_handler_fn(secondary_ata_interrupt_handler);
+        idt[InterruptIndex::SecondaryATA.as_usize()]
+            .set_handler_fn(secondary_ata_interrupt_handler);
         idt
     };
 }
@@ -40,7 +41,7 @@ pub enum InterruptIndex {
     Timer = PIC_1_OFFSET,
     Keyboard,
     PrimaryATA = PIC_1_OFFSET + 14,
-    SecondaryATA = PIC_1_OFFSET + 15, 
+    SecondaryATA = PIC_1_OFFSET + 15,
 }
 
 impl InterruptIndex {
@@ -64,7 +65,6 @@ extern "x86-interrupt" fn divide_handler(stack_frame: InterruptStackFrame) {
 extern "x86-interrupt" fn overflow_handler(stack_frame: InterruptStackFrame) {
     println!("EXCEPTION: OVERFLOW\n{:#?}", stack_frame);
 }
-
 
 extern "x86-interrupt" fn breakpoint_handle(stack_frame: InterruptStackFrame) {
     println!("EXCEPTION: BREAKPOINT\n{:#?}", stack_frame);
@@ -111,7 +111,6 @@ extern "x86-interrupt" fn secondary_ata_interrupt_handler(_stack_frame: Interrup
             .notify_end_of_interrupt(InterruptIndex::SecondaryATA.as_u8());
     }
 }
-
 
 extern "x86-interrupt" fn page_fault_handler(
     stack_frame: InterruptStackFrame,

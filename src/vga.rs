@@ -19,7 +19,6 @@ pub struct Vga {
     attribute_controller_index_port: Port8Bit,
     attribute_controller_write_port: Port8Bit,
     attribute_controller_reset_port: Port8Bit,
-
 }
 
 lazy_static! {

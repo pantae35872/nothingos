@@ -3,8 +3,8 @@ use core::cell::RefCell;
 use alloc::rc::Rc;
 use alloc::vec::Vec;
 
-use crate::vga::VGA;
 use crate::renderer::{FrameRenderer, Renderer};
+use crate::vga::VGA;
 
 pub struct RootWidget {
     renderer: Rc<RefCell<FrameRenderer>>,
@@ -13,7 +13,7 @@ pub struct RootWidget {
 
 impl RootWidget {
     pub fn new() -> Self {
-        Self { 
+        Self {
             renderer: Rc::new(RefCell::new(FrameRenderer::new(50, 50))),
             childs: Rc::new(RefCell::new(Vec::new())),
         }
@@ -33,7 +33,7 @@ impl RootWidget {
             child.render();
             for y in 0..child.get_renderer().borrow().get_height() {
                 for x in 0..child.get_renderer().borrow().get_width() {
-                    VGA.put_pixel(x, y, child.get_renderer().borrow().get_at_pos(x, y)); 
+                    VGA.put_pixel(x, y, child.get_renderer().borrow().get_at_pos(x, y));
                 }
             }
 
@@ -51,11 +51,11 @@ impl Widget for RootWidget {
         }
     }
 
-    fn get_childs(&self) -> Rc<RefCell<Vec<Rc<RefCell<dyn Widget>>>>>  {
+    fn get_childs(&self) -> Rc<RefCell<Vec<Rc<RefCell<dyn Widget>>>>> {
         self.childs.clone()
     }
     fn add_child(&mut self, child: Rc<RefCell<dyn Widget>>) {
-        self.childs.borrow_mut().push(child);            
+        self.childs.borrow_mut().push(child);
     }
     fn get_renderer(&mut self) -> Rc<RefCell<dyn Renderer>> {
         self.renderer.clone()
@@ -69,7 +69,7 @@ pub struct WindowWidget {
 
 impl WindowWidget {
     pub fn new() -> Self {
-        Self { 
+        Self {
             renderer: Rc::new(RefCell::new(FrameRenderer::new(100, 100))),
             childs: Rc::new(RefCell::new(Vec::new())),
         }
@@ -85,11 +85,11 @@ impl Widget for WindowWidget {
         }
     }
 
-    fn get_childs(&self) -> Rc<RefCell<Vec<Rc<RefCell<dyn Widget>>>>>  {
+    fn get_childs(&self) -> Rc<RefCell<Vec<Rc<RefCell<dyn Widget>>>>> {
         self.childs.clone()
     }
     fn add_child(&mut self, child: Rc<RefCell<dyn Widget>>) {
-        self.childs.borrow_mut().push(child);            
+        self.childs.borrow_mut().push(child);
     }
     fn get_renderer(&mut self) -> Rc<RefCell<dyn Renderer>> {
         self.renderer.clone()

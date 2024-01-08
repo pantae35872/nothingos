@@ -5,7 +5,7 @@ use crate::allocator::align_up;
 
 pub struct ListNode {
     size: usize,
-    next: Option<&'static mut ListNode>
+    next: Option<&'static mut ListNode>,
 }
 
 impl ListNode {
@@ -48,7 +48,11 @@ impl LinkedListAllocator {
         self.head.next = Some(&mut *node_ptr);
     }
 
-    pub fn find_region (&mut self, size: usize, align: usize) -> Option<(&'static mut ListNode, usize)> {
+    pub fn find_region(
+        &mut self,
+        size: usize,
+        align: usize,
+    ) -> Option<(&'static mut ListNode, usize)> {
         let mut current = &mut self.head;
         while let Some(ref mut region) = current.next {
             if let Ok(alloc_start) = Self::alloc_from_region(&region, size, align) {
@@ -79,8 +83,10 @@ impl LinkedListAllocator {
     }
 
     pub fn size_align(layout: Layout) -> (usize, usize) {
-        let layout = layout.align_to(align_of::<ListNode>())
-            .expect("adjusting alignment failed").pad_to_align();
+        let layout = layout
+            .align_to(align_of::<ListNode>())
+            .expect("adjusting alignment failed")
+            .pad_to_align();
         let size = layout.size().max(size_of::<ListNode>());
         (size, layout.align())
     }

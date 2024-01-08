@@ -19,7 +19,11 @@ pub struct CHS {
 
 impl CHS {
     pub fn new(h: u8, s: u8, c: u16) -> Result<Self, Box<OSError>> {
-        let mut chs = Self { head: 0, sector: 0, cylinder: 0 };
+        let mut chs = Self {
+            head: 0,
+            sector: 0,
+            cylinder: 0,
+        };
         chs.set_head(h);
         chs.set_sector(s)?;
         chs.set_cylinder(c)?;
@@ -35,14 +39,14 @@ impl CHS {
     }
 
     pub fn get_sector(&self) -> u8 {
-        return self.sector & 0b00111111; 
+        return self.sector & 0b00111111;
     }
 
     pub fn set_cylinder(&mut self, cylinder: u16) -> Result<(), Box<OSError>> {
-        if cylinder > 1023 { 
-            return Err(Box::new(OSError::new("Cylinder cannot be more than 1023"))); 
+        if cylinder > 1023 {
+            return Err(Box::new(OSError::new("Cylinder cannot be more than 1023")));
         }
-        
+
         self.sector = (((cylinder >> 2) & 0b11000000) | self.sector as u16) as u8;
         self.cylinder = (cylinder & 0b11111111) as u8;
         return Ok(());
@@ -53,8 +57,8 @@ impl CHS {
     }
 
     pub fn set_sector(&mut self, sector: u8) -> Result<(), Box<OSError>> {
-        if sector > 63 { 
-            return Err(Box::new(OSError::new("Drive is not formatted as mbr"))); 
+        if sector > 63 {
+            return Err(Box::new(OSError::new("Drive is not formatted as mbr")));
         }
 
         self.sector = (sector & 0b00111111) | self.sector;
@@ -62,16 +66,16 @@ impl CHS {
     }
 
     pub fn from_lba(lba: u32) -> Result<Self, Box<OSError>> {
-        let mut cylinder = floorf64((lba as f64)/(MAXSCT*MAXHD as f64));
-        let mut work1 = cylinder*(MAXSCT*MAXHD);
-        work1 = (lba as f64)-work1;
-        let hd = floorf64(work1/MAXSCT);
-        let sct = work1-hd*MAXSCT+1.0;
+        let mut cylinder = floorf64((lba as f64) / (MAXSCT * MAXHD as f64));
+        let mut work1 = cylinder * (MAXSCT * MAXHD);
+        work1 = (lba as f64) - work1;
+        let hd = floorf64(work1 / MAXSCT);
+        let sct = work1 - hd * MAXSCT + 1.0;
 
         if cylinder > 1023.0 {
             cylinder = 1023.0;
         }
-            
+
         Ok(Self::new(hd as u8, sct as u8, cylinder as u16)?)
     }
 }

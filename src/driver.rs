@@ -1,7 +1,7 @@
 pub mod keyboard;
-pub mod timer;
 pub mod storage;
+pub mod timer;
 
 pub fn init() {
-    keyboard::init(); 
+    keyboard::init();
 }

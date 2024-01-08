@@ -1,7 +1,7 @@
 use core::arch::asm;
 
 pub struct Port16Bit {
-    portnumber: u16
+    portnumber: u16,
 }
 
 impl Port16Bit {
@@ -17,7 +17,7 @@ impl Port16Bit {
                 options(att_syntax));
         }
     }
-    
+
     pub fn read(&self) -> u16 {
         let mut result: u16;
         unsafe {
@@ -59,4 +59,3 @@ impl Port8Bit {
         return result;
     }
 }
-

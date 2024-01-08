@@ -7,7 +7,6 @@
 #![feature(abi_x86_interrupt)]
 #![feature(ptr_internals)]
 #![feature(const_mut_refs)]
-#![feature(core_intrinsics)]
 #[macro_use]
 extern crate bitflags;
 
@@ -58,24 +57,24 @@ extern crate spin;
 pub mod serial;
 
 pub mod allocator;
+pub mod driver;
+pub mod filesystem;
 pub mod gdt;
+pub mod gui;
 pub mod interrupt;
 pub mod memory;
 pub mod print;
-pub mod utils;
-pub mod vga;
-pub mod gui;
 pub mod renderer;
 pub mod task;
-pub mod driver;
-pub mod filesystem;
+pub mod utils;
+pub mod vga;
 
 use core::panic::PanicInfo;
 
 use multiboot2::{BootInformation, BootInformationHeader, ElfSection};
 use x86_64::registers::model_specific::EferFlags;
 
-use self::allocator::{HEAP_SIZE, HEAP_START, init_heap};
+use self::allocator::{init_heap, HEAP_SIZE, HEAP_START};
 use self::interrupt::PICS;
 use self::memory::paging::Page;
 use self::print::PRINT;
