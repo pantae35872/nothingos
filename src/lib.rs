@@ -7,6 +7,7 @@
 #![feature(abi_x86_interrupt)]
 #![feature(ptr_internals)]
 #![feature(const_mut_refs)]
+#![feature(core_intrinsics)]
 #[macro_use]
 extern crate bitflags;
 
@@ -67,6 +68,7 @@ pub mod gui;
 pub mod renderer;
 pub mod task;
 pub mod driver;
+pub mod filesystem;
 
 use core::panic::PanicInfo;
 

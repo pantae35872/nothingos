@@ -2,5 +2,7 @@ target/
 vendor/
 iso/boot/kernel.bin
 disk.img
+msdos.disk
 os.iso
 Cargo.lock
+bfg-1.14.0.jar
