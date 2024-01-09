@@ -16,8 +16,7 @@ pub struct ATADrive {
     control_port: Port8Bit,
     master: bool,
     bytes_per_sector: usize,
-    hpc: u16,
-    sph: u16,
+    lba_end: u32,
 }
 
 impl ATADrive {
@@ -34,17 +33,12 @@ impl ATADrive {
             control_port: Port8Bit::new(port_base + 0x206),
             master,
             bytes_per_sector: 512,
-            hpc: 0,
-            sph: 0,
+            lba_end: 0,
         }
     }
 
-    pub fn get_hpc(&self) -> u16 {
-        self.hpc
-    }
-
-    pub fn get_sph(&self) -> u16 {
-        self.sph
+    pub fn get_lba_end(&self) -> u32 {
+        self.lba_end
     }
 
     pub async fn identify(&mut self) {
@@ -98,8 +92,11 @@ impl ATADrive {
             drive_size_in_gb_b10, drive_size_in_gb_b2
         );
 
-        self.hpc = (data[6] & 0xFF) as u16;
-        self.sph = (data[12] & 0xFF) as u16;
+        let lba_end_low = u64::from(data[100]);
+        let lba_end_high = u64::from(data[101]);
+
+        self.lba_end = ((lba_end_high << 16) | lba_end_low) as u32;
+        println!("{}", self.lba_end);
     }
 
     pub async fn write28(

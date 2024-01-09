@@ -17,12 +17,14 @@ use alloc::string::String;
 use multiboot2::BootInformationHeader;
 use nothingos::driver::storage::ata_driver::ATADrive;
 use nothingos::driver::storage::CHS;
+use nothingos::filesystem::partition::gpt_partition::test1;
 use nothingos::filesystem::partition::msdos_partition::{
     format_ata, read_partitions_ata, set_partitions_ata,
 };
 use nothingos::print::PRINT;
 use nothingos::task::executor::Executor;
 use nothingos::{driver, println};
+use uuid::Uuid;
 
 pub fn hlt_loop() -> ! {
     loop {
@@ -41,10 +43,6 @@ pub fn start(multiboot_information_address: *const BootInformationHeader) -> ! {
         //drive.write28(0, msg, msg.len()).await;
         //drive.flush();
         //set_partitions_ata(&mut drive, 0x83, 2, 1504097, 65536, false).await;
-        format_ata(&mut drive).await.expect("Format ata error");
-        set_partitions_ata(&mut drive, 0x83, 0, 63, 1048576, false)
-            .await
-            .expect("Set partition error");
         //read_partitions_ata(&mut drive).await;
     });
 

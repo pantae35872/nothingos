@@ -72,6 +72,8 @@ pub mod vga;
 use core::panic::PanicInfo;
 
 use multiboot2::{BootInformation, BootInformationHeader, ElfSection};
+use uuid::Uuid;
+use x86_64::registers::control::Cr0Flags;
 use x86_64::registers::model_specific::EferFlags;
 
 use self::allocator::{init_heap, HEAP_SIZE, HEAP_START};
@@ -161,6 +163,7 @@ pub fn init(multiboot_information_address: *const BootInformationHeader) {
         boot_info.memory_map_tag().unwrap().memory_areas(),
     );
     enable_nxe_bit();
+    enable_write_protect_bit();
     let mut active_table = memory::remap_the_kernel(&mut frame_allocator, &boot_info);
     let heap_start_page = Page::containing_address(HEAP_START);
     let heap_end_page = Page::containing_address(HEAP_START + HEAP_SIZE - 1);
@@ -177,13 +180,26 @@ pub fn init(multiboot_information_address: *const BootInformationHeader) {
     init_heap();
     driver::init();
     task::init();
+    println!("{}", Uuid::new_v4().urn());
+}
+
+fn enable_write_protect_bit() {
+    use x86_64::registers::control::Cr0;
+
+    unsafe {
+        let mut cr0 = Cr0::read();
+        cr0.insert(Cr0Flags::WRITE_PROTECT);
+        Cr0::write(cr0);
+    }
 }
 
 fn enable_nxe_bit() {
     use x86_64::registers::model_specific::Efer;
 
     unsafe {
-        Efer::write(EferFlags::NO_EXECUTE_ENABLE);
+        let mut efer = Efer::read();
+        efer.insert(EferFlags::NO_EXECUTE_ENABLE);
+        Efer::write(efer);
     }
 }
 

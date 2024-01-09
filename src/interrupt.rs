@@ -1,5 +1,6 @@
 use crate::driver;
 use crate::gdt;
+use crate::hlt_loop;
 use crate::println;
 use lazy_static::lazy_static;
 use pic8259::ChainedPics;
@@ -15,6 +16,26 @@ lazy_static! {
         idt.page_fault.set_handler_fn(page_fault_handler);
         idt.overflow.set_handler_fn(overflow_handler);
         idt.divide_error.set_handler_fn(divide_handler);
+        idt.debug.set_handler_fn(debug_handler);
+        idt.invalid_tss.set_handler_fn(tss_handler);
+        idt.machine_check.set_handler_fn(machine_check_handler);
+        idt.invalid_opcode.set_handler_fn(invalid_opcode_handler);
+        idt.hv_injection_exception
+            .set_handler_fn(hv_injection_handler);
+        idt.device_not_available
+            .set_handler_fn(device_not_available_handler);
+        idt.vmm_communication_exception
+            .set_handler_fn(vmm_communication_exception_handler);
+        idt.virtualization.set_handler_fn(virtualization_handler);
+        idt.security_exception
+            .set_handler_fn(security_exception_handler);
+        idt.alignment_check.set_handler_fn(alignment_check_handler);
+        idt.x87_floating_point
+            .set_handler_fn(x87_floating_point_handler);
+        idt.segment_not_present
+            .set_handler_fn(segment_not_present_handler);
+        idt.general_protection_fault
+            .set_handler_fn(general_protection_fault_handler);
         unsafe {
             idt.double_fault
                 .set_handler_fn(double_fault_handler)
@@ -57,6 +78,56 @@ impl InterruptIndex {
 pub fn init_idt() {
     IDT.load();
 }
+
+extern "x86-interrupt" fn x87_floating_point_handler(stack_frame: InterruptStackFrame) {}
+
+extern "x86-interrupt" fn virtualization_handler(stack_frame: InterruptStackFrame) {}
+
+extern "x86-interrupt" fn device_not_available_handler(stack_frame: InterruptStackFrame) {}
+
+extern "x86-interrupt" fn hv_injection_handler(stack_frame: InterruptStackFrame) {}
+
+extern "x86-interrupt" fn invalid_opcode_handler(stack_frame: InterruptStackFrame) {}
+
+extern "x86-interrupt" fn machine_check_handler(stack_frame: InterruptStackFrame) -> ! {
+    hlt_loop();
+}
+
+extern "x86-interrupt" fn general_protection_fault_handler(
+    stack_frame: InterruptStackFrame,
+    _error_code: u64,
+) {
+    println!("{:#?}", stack_frame);
+    hlt_loop();
+}
+
+extern "x86-interrupt" fn segment_not_present_handler(
+    stack_frame: InterruptStackFrame,
+    _error_code: u64,
+) {
+}
+
+extern "x86-interrupt" fn alignment_check_handler(
+    stack_frame: InterruptStackFrame,
+    _error_code: u64,
+) {
+}
+
+extern "x86-interrupt" fn security_exception_handler(
+    stack_frame: InterruptStackFrame,
+    _error_code: u64,
+) {
+}
+
+extern "x86-interrupt" fn vmm_communication_exception_handler(
+    stack_frame: InterruptStackFrame,
+    _error_code: u64,
+) {
+}
+
+extern "x86-interrupt" fn tss_handler(stack_frame: InterruptStackFrame, _error_code: u64) {}
+
+extern "x86-interrupt" fn debug_handler(stack_frame: InterruptStackFrame) {}
 
 extern "x86-interrupt" fn divide_handler(stack_frame: InterruptStackFrame) {
     println!("EXCEPTION: DIVISION\n{:#?}", stack_frame);
