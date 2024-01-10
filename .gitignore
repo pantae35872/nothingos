@@ -5,6 +5,7 @@ tinycore.sh
 disk.img
 msdos.disk
 os.iso
+disk.disk
 Cargo.lock
 bfg-1.14.0.jar
 Core-current.iso
