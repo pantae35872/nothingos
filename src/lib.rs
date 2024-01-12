@@ -8,6 +8,7 @@
 #![feature(ptr_internals)]
 #![feature(const_mut_refs)]
 #![feature(str_from_utf16_endian)]
+#![allow(dead_code)]
 #[macro_use]
 extern crate bitflags;
 
@@ -73,8 +74,6 @@ pub mod vga;
 use core::panic::PanicInfo;
 
 use multiboot2::{BootInformation, BootInformationHeader, ElfSection};
-use uguid::Guid;
-use uuid::Uuid;
 use x86_64::registers::control::Cr0Flags;
 use x86_64::registers::model_specific::EferFlags;
 

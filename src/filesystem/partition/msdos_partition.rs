@@ -18,7 +18,6 @@ pub struct PartitionTableEntry {
 }
 
 #[repr(packed)]
-#[derive(Debug)]
 struct MasterBootRecord {
     bootloader: [u8; 440],
     signature: u32,

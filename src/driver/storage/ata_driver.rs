@@ -5,7 +5,7 @@ use futures_util::Future;
 
 use crate::utils::oserror::OSError;
 use crate::utils::port::{Port16Bit, Port8Bit};
-use crate::{inline_if, print, println};
+use crate::{inline_if, println};
 
 use super::Drive;
 

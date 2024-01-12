@@ -13,20 +13,11 @@ extern crate multiboot2;
 extern crate nothingos;
 extern crate spin;
 
-use core::str::FromStr;
-
-use alloc::string::String;
-use alloc::vec;
-use alloc::vec::Vec;
 use multiboot2::BootInformationHeader;
 use nothingos::driver::storage::ata_driver::ATADrive;
-use nothingos::driver::storage::CHS;
-use nothingos::filesystem::partition::gpt_partition::{self, GPTPartitions};
-use nothingos::print::PRINT;
+use nothingos::filesystem::partition::gpt_partition::GPTPartitions;
 use nothingos::task::executor::{AwaitType, Executor};
 use nothingos::{driver, println};
-use uguid::guid;
-use uuid::Uuid;
 
 pub fn hlt_loop() -> ! {
     loop {

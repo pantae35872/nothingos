@@ -2,17 +2,14 @@ use core::mem::size_of;
 use core::slice;
 
 use alloc::boxed::Box;
-use alloc::string::String;
 use crc::{crc32, Hasher32};
-use futures_util::Future;
-use uguid::{guid, Guid};
+use uguid::Guid;
 use uuid::Uuid;
 
-use crate::driver::storage::ata_driver::ATADrive;
 use crate::driver::storage::{Drive, CHS};
+use crate::println;
 use crate::utils::floorf64;
 use crate::utils::oserror::OSError;
-use crate::{print, println};
 
 use super::msdos_partition::MSDosPartition;
 
