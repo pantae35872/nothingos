@@ -1,8 +1,13 @@
+use core::task::Poll;
+
 use alloc::boxed::Box;
+use futures_util::Future;
 
 use crate::utils::oserror::OSError;
 use crate::utils::port::{Port16Bit, Port8Bit};
-use crate::{inline_if, println};
+use crate::{inline_if, print, println};
+
+use super::Drive;
 
 pub struct ATADrive {
     data_port: Port16Bit,
@@ -16,7 +21,7 @@ pub struct ATADrive {
     control_port: Port8Bit,
     master: bool,
     bytes_per_sector: usize,
-    lba_end: u32,
+    lba_end: u64,
 }
 
 impl ATADrive {
@@ -35,10 +40,6 @@ impl ATADrive {
             bytes_per_sector: 512,
             lba_end: 0,
         }
-    }
-
-    pub fn get_lba_end(&self) -> u32 {
-        self.lba_end
     }
 
     pub async fn identify(&mut self) {
@@ -68,9 +69,9 @@ impl ATADrive {
             return;
         }
 
-        while ((status & 0x80) == 0x80) && ((status & 0x01) != 0x01) {
-            status = self.command_port.read();
-        }
+        DriveAsync::new(&self.command_port).await;
+
+        status = self.command_port.read();
 
         if (status & 0x01) != 0 {
             return;
@@ -95,16 +96,53 @@ impl ATADrive {
         let lba_end_low = u64::from(data[100]);
         let lba_end_high = u64::from(data[101]);
 
-        self.lba_end = ((lba_end_high << 16) | lba_end_low) as u32;
-        println!("{}", self.lba_end);
+        self.lba_end = ((lba_end_high << 16) | lba_end_low) - 1;
     }
 
-    pub async fn write28(
-        &mut self,
-        sector: u32,
-        data: &[u8],
-        count: usize,
-    ) -> Result<(), Box<OSError>> {
+    pub async fn flush(&mut self) -> Result<(), Box<OSError>> {
+        self.device_port.write(inline_if!(self.master, 0xE0, 0xF0));
+        self.command_port.write(0xE7);
+
+        DriveAsync::new(&self.command_port).await;
+
+        let status = self.command_port.read();
+
+        if (status & 0x01) != 0 {
+            return Err(Box::new(OSError::new("Drive error")));
+        }
+        return Ok(());
+    }
+}
+
+struct DriveAsync<'a> {
+    command_port: &'a Port8Bit,
+}
+
+impl<'a> DriveAsync<'a> {
+    pub fn new(command_port: &'a Port8Bit) -> Self {
+        Self { command_port }
+    }
+}
+
+impl<'a> Future for DriveAsync<'a> {
+    type Output = ();
+
+    fn poll(self: core::pin::Pin<&mut Self>, _cx: &mut core::task::Context<'_>) -> Poll<()> {
+        let status = self.command_port.read();
+        if ((status & 0x80) == 0x80) && ((status & 0x01) != 0x01) {
+            return Poll::Pending;
+        } else {
+            return Poll::Ready(());
+        }
+    }
+}
+
+impl Drive for ATADrive {
+    fn lba_end(&self) -> u64 {
+        self.lba_end
+    }
+
+    async fn write(&mut self, sector: u64, data: &[u8], count: usize) -> Result<(), Box<OSError>> {
         if (sector & 0xF0000000) != 0 || count > self.bytes_per_sector {
             return Err(Box::new(OSError::new("Drive error")));
         }
@@ -131,12 +169,13 @@ impl ATADrive {
         for _i in ((count + (count % 2))..self.bytes_per_sector).step_by(2) {
             self.data_port.write(0x0000);
         }
+        self.flush().await?;
         return Ok(());
     }
 
-    pub async fn read28(
+    async fn read(
         &mut self,
-        sector: u32,
+        sector: u64,
         data: &mut [u8],
         count: usize,
     ) -> Result<(), Box<OSError>> {
@@ -154,11 +193,9 @@ impl ATADrive {
         self.lba_hi_port.write(((sector & 0x00FF0000) >> 16) as u8);
         self.command_port.write(0x20);
 
-        let mut status = self.command_port.read();
+        DriveAsync::new(&self.command_port).await;
 
-        while ((status & 0x80) == 0x80) && ((status & 0x01) != 0x01) {
-            status = self.command_port.read();
-        }
+        let status = self.command_port.read();
 
         if (status & 0x01) != 0 {
             return Err(Box::new(OSError::new("Drive error")));
@@ -175,21 +212,6 @@ impl ATADrive {
 
         for _i in ((count + (count % 2))..self.bytes_per_sector).step_by(2) {
             self.data_port.read();
-        }
-        return Ok(());
-    }
-
-    pub async fn flush(&mut self) -> Result<(), Box<OSError>> {
-        self.device_port.write(inline_if!(self.master, 0xE0, 0xF0));
-        self.command_port.write(0xE7);
-
-        let mut status = self.command_port.read();
-        while ((status & 0x80) == 0x80) && ((status & 0x01) != 0x01) {
-            status = self.command_port.read();
-        }
-
-        if (status & 0x01) != 0 {
-            return Err(Box::new(OSError::new("Drive error")));
         }
         return Ok(());
     }

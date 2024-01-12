@@ -1,4 +1,5 @@
-use crate::{print, println, task::interrupt_wake};
+use crate::task::interrupt_wake;
+use crate::{print, println};
 use conquer_once::spin::OnceCell;
 use core::future::Future;
 use core::{
@@ -14,7 +15,7 @@ static SCANCODE_QUEUE: OnceCell<ArrayQueue<u8>> = OnceCell::uninit();
 
 pub fn init() {
     SCANCODE_QUEUE
-        .try_init_once(|| ArrayQueue::new(10))
+        .try_init_once(|| ArrayQueue::new(100))
         .expect("failed to init scancode queue");
 }
 
@@ -48,6 +49,7 @@ impl Future for NextScancode {
         }
 
         WAKER.register(&cx.waker());
+
         match scancodes.pop() {
             Ok(scancode) => Poll::Ready(scancode),
             Err(crossbeam_queue::PopError) => Poll::Pending,

@@ -7,6 +7,7 @@
 #![feature(abi_x86_interrupt)]
 #![feature(ptr_internals)]
 #![feature(const_mut_refs)]
+#![feature(str_from_utf16_endian)]
 #[macro_use]
 extern crate bitflags;
 
@@ -72,6 +73,7 @@ pub mod vga;
 use core::panic::PanicInfo;
 
 use multiboot2::{BootInformation, BootInformationHeader, ElfSection};
+use uguid::Guid;
 use uuid::Uuid;
 use x86_64::registers::control::Cr0Flags;
 use x86_64::registers::model_specific::EferFlags;
@@ -141,6 +143,7 @@ pub fn init(multiboot_information_address: *const BootInformationHeader) {
     gdt::init();
     interrupt::init_idt();
     unsafe { PICS.lock().initialize() };
+    x86_64::instructions::interrupts::enable();
     let boot_info = unsafe { BootInformation::load(multiboot_information_address).unwrap() };
     let elf_sections_tag = boot_info.elf_sections().expect("Elf-sections tag required");
     let kernel_start = elf_sections_tag
@@ -180,7 +183,6 @@ pub fn init(multiboot_information_address: *const BootInformationHeader) {
     init_heap();
     driver::init();
     task::init();
-    println!("{}", Uuid::new_v4().urn());
 }
 
 fn enable_write_protect_bit() {

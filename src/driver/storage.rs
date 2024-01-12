@@ -1,6 +1,6 @@
 pub mod ata_driver;
 
-use core::f64;
+use core::{f64, future};
 
 use alloc::boxed::Box;
 
@@ -78,4 +78,22 @@ impl CHS {
 
         Ok(Self::new(hd as u8, sct as u8, cylinder as u16)?)
     }
+}
+
+pub trait Drive {
+    fn write(
+        &mut self,
+        sector: u64,
+        data: &[u8],
+        count: usize,
+    ) -> impl future::Future<Output = Result<(), Box<OSError>>> + Send;
+
+    fn read(
+        &mut self,
+        sector: u64,
+        data: &mut [u8],
+        count: usize,
+    ) -> impl future::Future<Output = Result<(), Box<OSError>>> + Send;
+
+    fn lba_end(&self) -> u64;
 }
