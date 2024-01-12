@@ -36,6 +36,12 @@ lazy_static! {
             .set_handler_fn(segment_not_present_handler);
         idt.general_protection_fault
             .set_handler_fn(general_protection_fault_handler);
+        idt.cp_protection_exception
+            .set_handler_fn(cp_protection_exception_handler);
+        idt.stack_segment_fault
+            .set_handler_fn(stack_segment_fault_handler);
+        idt.simd_floating_point
+            .set_handler_fn(simd_floating_point_handler);
         unsafe {
             idt.double_fault
                 .set_handler_fn(double_fault_handler)
@@ -79,55 +85,67 @@ pub fn init_idt() {
     IDT.load();
 }
 
-extern "x86-interrupt" fn x87_floating_point_handler(stack_frame: InterruptStackFrame) {}
+extern "x86-interrupt" fn simd_floating_point_handler(_stack_frame: InterruptStackFrame) {}
 
-extern "x86-interrupt" fn virtualization_handler(stack_frame: InterruptStackFrame) {}
+extern "x86-interrupt" fn x87_floating_point_handler(_stack_frame: InterruptStackFrame) {}
 
-extern "x86-interrupt" fn device_not_available_handler(stack_frame: InterruptStackFrame) {}
+extern "x86-interrupt" fn virtualization_handler(_stack_frame: InterruptStackFrame) {}
 
-extern "x86-interrupt" fn hv_injection_handler(stack_frame: InterruptStackFrame) {}
+extern "x86-interrupt" fn device_not_available_handler(_stack_frame: InterruptStackFrame) {}
 
-extern "x86-interrupt" fn invalid_opcode_handler(stack_frame: InterruptStackFrame) {}
+extern "x86-interrupt" fn hv_injection_handler(_stack_frame: InterruptStackFrame) {}
 
-extern "x86-interrupt" fn machine_check_handler(stack_frame: InterruptStackFrame) -> ! {
+extern "x86-interrupt" fn invalid_opcode_handler(_stack_frame: InterruptStackFrame) {}
+
+extern "x86-interrupt" fn machine_check_handler(_stack_frame: InterruptStackFrame) -> ! {
     hlt_loop();
+}
+
+extern "x86-interrupt" fn stack_segment_fault_handler(
+    _stack_frame: InterruptStackFrame,
+    _error_code: u64,
+) {
+}
+
+extern "x86-interrupt" fn cp_protection_exception_handler(
+    _stack_frame: InterruptStackFrame,
+    _error_code: u64,
+) {
 }
 
 extern "x86-interrupt" fn general_protection_fault_handler(
-    stack_frame: InterruptStackFrame,
+    _stack_frame: InterruptStackFrame,
     _error_code: u64,
 ) {
-    println!("{:#?}", stack_frame);
-    hlt_loop();
 }
 
 extern "x86-interrupt" fn segment_not_present_handler(
-    stack_frame: InterruptStackFrame,
+    _stack_frame: InterruptStackFrame,
     _error_code: u64,
 ) {
 }
 
 extern "x86-interrupt" fn alignment_check_handler(
-    stack_frame: InterruptStackFrame,
+    _stack_frame: InterruptStackFrame,
     _error_code: u64,
 ) {
 }
 
 extern "x86-interrupt" fn security_exception_handler(
-    stack_frame: InterruptStackFrame,
+    _stack_frame: InterruptStackFrame,
     _error_code: u64,
 ) {
 }
 
 extern "x86-interrupt" fn vmm_communication_exception_handler(
-    stack_frame: InterruptStackFrame,
+    _stack_frame: InterruptStackFrame,
     _error_code: u64,
 ) {
 }
 
-extern "x86-interrupt" fn tss_handler(stack_frame: InterruptStackFrame, _error_code: u64) {}
+extern "x86-interrupt" fn tss_handler(_stack_frame: InterruptStackFrame, _error_code: u64) {}
 
-extern "x86-interrupt" fn debug_handler(stack_frame: InterruptStackFrame) {}
+extern "x86-interrupt" fn debug_handler(_stack_frame: InterruptStackFrame) {}
 
 extern "x86-interrupt" fn divide_handler(stack_frame: InterruptStackFrame) {
     println!("EXCEPTION: DIVISION\n{:#?}", stack_frame);
