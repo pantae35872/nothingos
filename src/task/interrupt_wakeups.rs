@@ -11,6 +11,7 @@ pub fn init() {
         .expect("failed to init interrupt wakeup queue");
 }
 
+/// Queues a waker for waking in an interrupt-safe way
 pub(crate) fn interrupt_wake(waker: Waker) {
     if let Err(_) = interrupt_wakeups().push(waker) {
         println!("WARNING: dropping interrupt wakeup");

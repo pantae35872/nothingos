@@ -1,5 +1,3 @@
-use super::interrupt_wakeups::interrupt_wakeups;
-use crate::println;
 use alloc::{
     boxed::Box,
     collections::{BTreeMap, VecDeque},
@@ -11,9 +9,29 @@ use core::{
     pin::Pin,
     task::{Context, Poll},
 };
+
+pub enum AwaitType {
+    AlwaysPoll,
+    WakePoll,
+}
+
 use crossbeam_queue::SegQueue;
 
-pub type Task = Pin<Box<dyn Future<Output = ()>>>;
+use crate::println;
+
+use super::interrupt_wakeups::interrupt_wakeups;
+
+struct Task {
+    task: Pin<Box<dyn Future<Output = ()>>>,
+    typ: AwaitType,
+}
+
+impl Task {
+    fn new(task: Pin<Box<dyn Future<Output = ()>>>, typ: AwaitType) -> Self {
+        Self { task, typ }
+    }
+}
+
 type TaskId = usize;
 
 pub struct Executor {
@@ -31,8 +49,8 @@ impl Executor {
         }
     }
 
-    pub fn spawn(&mut self, task: impl Future<Output = ()> + 'static) {
-        self.task_queue.push_back(Box::pin(task))
+    pub fn spawn(&mut self, task: impl Future<Output = ()> + 'static, typ: AwaitType) {
+        self.task_queue.push_back(Task::new(Box::pin(task), typ));
     }
 
     pub fn run(&mut self) -> ! {
@@ -48,14 +66,20 @@ impl Executor {
         while let Some(mut task) = self.task_queue.pop_front() {
             let waker = self.create_waker(&task).into();
             let mut context = Context::from_waker(&waker);
-            match task.as_mut().poll(&mut context) {
+            match task.task.as_mut().poll(&mut context) {
                 Poll::Ready(()) => {}
-                Poll::Pending => {
-                    let task_id = Self::task_id(&task);
-                    if self.pending_tasks.insert(task_id, task).is_some() {
-                        panic!("Task with same ID already in pending_tasks");
+                Poll::Pending => match task.typ {
+                    AwaitType::AlwaysPoll => {
+                        self.task_queue.push_back(task);
+                        break;
                     }
-                }
+                    AwaitType::WakePoll => {
+                        let task_id = Self::task_id(&task);
+                        if self.pending_tasks.insert(task_id, task).is_some() {
+                            panic!("Task with same ID already in pending_tasks");
+                        }
+                    }
+                },
             }
         }
     }
@@ -88,7 +112,7 @@ impl Executor {
     }
 
     fn task_id(task: &Task) -> TaskId {
-        let future_ref: &dyn Future<Output = ()> = &**task;
+        let future_ref: &dyn Future<Output = ()> = &*task.task;
         future_ref as *const _ as *const () as usize
     }
 

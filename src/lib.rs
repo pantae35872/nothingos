@@ -7,7 +7,7 @@
 #![feature(abi_x86_interrupt)]
 #![feature(ptr_internals)]
 #![feature(const_mut_refs)]
-#![feature(core_intrinsics)]
+#![feature(str_from_utf16_endian)]
 #[macro_use]
 extern crate bitflags;
 
@@ -58,24 +58,27 @@ extern crate spin;
 pub mod serial;
 
 pub mod allocator;
+pub mod driver;
+pub mod filesystem;
 pub mod gdt;
+pub mod gui;
 pub mod interrupt;
 pub mod memory;
 pub mod print;
-pub mod utils;
-pub mod vga;
-pub mod gui;
 pub mod renderer;
 pub mod task;
-pub mod driver;
-pub mod filesystem;
+pub mod utils;
+pub mod vga;
 
 use core::panic::PanicInfo;
 
 use multiboot2::{BootInformation, BootInformationHeader, ElfSection};
+use uguid::Guid;
+use uuid::Uuid;
+use x86_64::registers::control::Cr0Flags;
 use x86_64::registers::model_specific::EferFlags;
 
-use self::allocator::{HEAP_SIZE, HEAP_START, init_heap};
+use self::allocator::{init_heap, HEAP_SIZE, HEAP_START};
 use self::interrupt::PICS;
 use self::memory::paging::Page;
 use self::print::PRINT;
@@ -140,6 +143,7 @@ pub fn init(multiboot_information_address: *const BootInformationHeader) {
     gdt::init();
     interrupt::init_idt();
     unsafe { PICS.lock().initialize() };
+    x86_64::instructions::interrupts::enable();
     let boot_info = unsafe { BootInformation::load(multiboot_information_address).unwrap() };
     let elf_sections_tag = boot_info.elf_sections().expect("Elf-sections tag required");
     let kernel_start = elf_sections_tag
@@ -162,6 +166,7 @@ pub fn init(multiboot_information_address: *const BootInformationHeader) {
         boot_info.memory_map_tag().unwrap().memory_areas(),
     );
     enable_nxe_bit();
+    enable_write_protect_bit();
     let mut active_table = memory::remap_the_kernel(&mut frame_allocator, &boot_info);
     let heap_start_page = Page::containing_address(HEAP_START);
     let heap_end_page = Page::containing_address(HEAP_START + HEAP_SIZE - 1);
@@ -180,11 +185,23 @@ pub fn init(multiboot_information_address: *const BootInformationHeader) {
     task::init();
 }
 
+fn enable_write_protect_bit() {
+    use x86_64::registers::control::Cr0;
+
+    unsafe {
+        let mut cr0 = Cr0::read();
+        cr0.insert(Cr0Flags::WRITE_PROTECT);
+        Cr0::write(cr0);
+    }
+}
+
 fn enable_nxe_bit() {
     use x86_64::registers::model_specific::Efer;
 
     unsafe {
-        Efer::write(EferFlags::NO_EXECUTE_ENABLE);
+        let mut efer = Efer::read();
+        efer.insert(EferFlags::NO_EXECUTE_ENABLE);
+        Efer::write(efer);
     }
 }
 

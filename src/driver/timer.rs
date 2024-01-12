@@ -1,11 +1,14 @@
-use crate::{print, task::interrupt_wake};
 use core::future::Future;
 use core::{
     pin::Pin,
     sync::atomic::{AtomicU64, Ordering},
     task::{Context, Poll},
 };
+
 use futures_util::task::AtomicWaker;
+
+use crate::print;
+use crate::task::interrupt_wake;
 
 static TICKS: AtomicU64 = AtomicU64::new(0);
 static WAKER: AtomicWaker = AtomicWaker::new();

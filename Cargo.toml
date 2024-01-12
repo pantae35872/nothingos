@@ -15,7 +15,10 @@ debug-assertions = false
 [package.metadata.osc]
 test-args = [
     "-device", "isa-debug-exit,iobase=0xf4,iosize=0x04", "-serial", "stdio",
-    "-display", "none"
+    "-display", "none", "-enable-kvm", "-cpu", "host,+rdrand"
+]
+run-args = [
+    "-m", "8G", "-hda", "disk.disk", "-boot", "d", "-enable-kvm", "-cpu", "host,+rdrand"
 ]
 
 [features]
@@ -34,11 +37,23 @@ uart_16550 = "0.2.0"
 multiboot2 = "0.19.0"
 bitflags = "2.4.1"
 linked_list_allocator = "0.9.0"
+uguid = "2.2.0"
+getrandom = { version = "0.2.11", features = ["rdrand"] }
+
+[dependencies.crc]
+version = "1.8.1"
+default-features = false
+
 
 [dependencies.crossbeam-queue]
 version = "0.2.1"
 default-features = false
 features = ["alloc"]
+
+[dependencies.uuid]
+version = "1.6.1"
+features = ["v4"]
+default-features = false
 
 [dependencies.futures-util]
 version = "0.3.4"

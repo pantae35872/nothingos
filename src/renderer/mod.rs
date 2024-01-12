@@ -9,14 +9,17 @@ pub struct FrameRenderer {
 
 impl FrameRenderer {
     pub fn new(width: usize, height: usize) -> Self {
-        Self { pixels: vec![vec![0; height]; width],
-            width, height}
+        Self {
+            pixels: vec![vec![0; height]; width],
+            width,
+            height,
+        }
     }
 }
 
 impl Renderer for FrameRenderer {
     fn set_pixel(&mut self, x: usize, y: usize, color: u8) {
-        self.pixels[x][y] = color; 
+        self.pixels[x][y] = color;
     }
 
     fn get_at_pos(&self, x: usize, y: usize) -> u8 {

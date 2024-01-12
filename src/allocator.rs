@@ -58,4 +58,3 @@ pub fn init_heap() {
         GLOBAL_ALLOCATOR.lock().init(HEAP_START, HEAP_SIZE);
     }
 }
-
