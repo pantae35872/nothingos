@@ -3,7 +3,7 @@ use core::ptr::write_volatile;
 
 use lazy_static::lazy_static;
 
-pub const BACKBUFFER_START: usize = 0o_000_100_000_000_0000;
+pub const BACKBUFFER_START: usize = 0xFFFFFFFFFF000000;
 pub const BACKBUFFER_SIZE: usize = 0xFA000;
 
 use crate::utils::port::Port8Bit;
@@ -43,43 +43,44 @@ impl Vga {
 
     unsafe fn write_registers(&self, registers_slice: &mut [u8]) {
         let mut registers = registers_slice.iter();
-        self.misc_port.write(*registers.next().unwrap_or(&0));
+        self.misc_port.write(registers.next().unwrap_or(&0));
         for i in 0..5 {
-            self.sequencer_index_port.write(i);
+            self.sequencer_index_port.write(&i);
             self.sequencer_data_port
-                .write(*registers.next().unwrap_or(&0));
+                .write(registers.next().unwrap_or(&0));
         }
 
-        self.crtc_index_port.write(0x03);
-        self.crtc_data_port.write(self.crtc_data_port.read() | 0x80);
-        self.crtc_index_port.write(0x11);
+        self.crtc_index_port.write(&0x03);
         self.crtc_data_port
-            .write(self.crtc_data_port.read() & !0x80);
+            .write(&(self.crtc_data_port.read() | 0x80));
+        self.crtc_index_port.write(&0x11);
+        self.crtc_data_port
+            .write(&(self.crtc_data_port.read() & !0x80));
         drop(registers);
         registers_slice[0x03] = registers_slice[0x03] | 0x80;
         registers_slice[0x11] = registers_slice[0x11] & !0x80;
         let mut registers = registers_slice.iter().skip(6);
 
         for i in 0..25 {
-            self.crtc_index_port.write(i);
-            self.crtc_data_port.write(*registers.next().unwrap_or(&0));
+            self.crtc_index_port.write(&i);
+            self.crtc_data_port.write(registers.next().unwrap_or(&0));
         }
 
         for i in 0..9 {
-            self.graphic_controller_index_port.write(i);
+            self.graphic_controller_index_port.write(&i);
             self.graphic_controller_data_port
-                .write(*registers.next().unwrap_or(&0));
+                .write(registers.next().unwrap_or(&0));
         }
 
         for i in 0..21 {
             self.attribute_controller_reset_port.read();
-            self.attribute_controller_index_port.write(i);
+            self.attribute_controller_index_port.write(&i);
             self.attribute_controller_write_port
-                .write(*registers.next().unwrap_or(&0));
+                .write(registers.next().unwrap_or(&0));
         }
 
         self.attribute_controller_reset_port.read();
-        self.attribute_controller_index_port.write(0x20);
+        self.attribute_controller_index_port.write(&0x20);
     }
 
     fn support_mode(width: u32, height: u32, colordepth: u32) -> bool {
@@ -109,7 +110,7 @@ impl Vga {
     }
 
     fn get_frame_buffer_segment(&self) -> usize {
-        self.graphic_controller_index_port.write(0x06);
+        self.graphic_controller_index_port.write(&0x06);
         let segment_number = self.graphic_controller_data_port.read() & (3 << 2);
         match segment_number {
             n if 0 << 2 == n => 0x00000,

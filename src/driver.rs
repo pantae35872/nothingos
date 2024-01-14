@@ -1,4 +1,5 @@
 pub mod keyboard;
+pub mod pci;
 pub mod storage;
 pub mod timer;
 

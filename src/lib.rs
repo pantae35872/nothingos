@@ -78,8 +78,10 @@ use x86_64::registers::control::Cr0Flags;
 use x86_64::registers::model_specific::EferFlags;
 
 use self::allocator::{init_heap, HEAP_SIZE, HEAP_START};
+use self::driver::storage::ahci_driver::{AHCIDrive, AHCI_SIZE, AHCI_START};
 use self::interrupt::PICS;
-use self::memory::paging::Page;
+use self::memory::paging::{ActivePageTable, Page};
+use self::memory::{area_frame_allocator, AreaFrameAllocator, Frame, FrameAllocator};
 use self::print::PRINT;
 use self::vga::{BACKBUFFER_SIZE, BACKBUFFER_START};
 
@@ -178,6 +180,19 @@ pub fn init(multiboot_information_address: *const BootInformationHeader) {
 
     for page in Page::range_inclusive(backbuffer_start_page, backbuffer_end_page) {
         active_table.map(page, EntryFlags::WRITABLE, &mut frame_allocator);
+    }
+    let ahci_start_page = Page::containing_address(AHCI_START);
+    let ahci_end_page = Page::containing_address(AHCI_START + AHCI_SIZE);
+    let ahci_address = AHCIDrive::get_ahci_address();
+    if let Some(ahci_address) = ahci_address {
+        for (page, frame) in
+            Page::range_inclusive(ahci_start_page, ahci_end_page).zip(Frame::range_inclusive(
+                Frame::containing_address(ahci_address as usize),
+                Frame::containing_address(ahci_address as usize + AHCI_SIZE),
+            ))
+        {
+            active_table.map_to(page, frame, EntryFlags::NO_CACHE, &mut frame_allocator);
+        }
     }
     init_heap();
     driver::init();

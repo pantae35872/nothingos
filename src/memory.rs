@@ -13,7 +13,7 @@ pub struct Frame {
 pub const PAGE_SIZE: usize = 4096;
 
 impl Frame {
-    fn containing_address(address: usize) -> Frame {
+    pub fn containing_address(address: usize) -> Frame {
         Frame {
             number: address / PAGE_SIZE,
         }
@@ -21,7 +21,7 @@ impl Frame {
     fn start_address(&self) -> PhysicalAddress {
         self.number * PAGE_SIZE
     }
-    fn range_inclusive(start: Frame, end: Frame) -> FrameIter {
+    pub fn range_inclusive(start: Frame, end: Frame) -> FrameIter {
         FrameIter { start, end }
     }
 }
@@ -31,7 +31,7 @@ pub trait FrameAllocator {
     fn deallocate_frame(&mut self, frame: Frame);
 }
 
-struct FrameIter {
+pub struct FrameIter {
     start: Frame,
     end: Frame,
 }

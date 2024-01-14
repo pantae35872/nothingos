@@ -5,7 +5,7 @@ pub mod linked_list;
 
 use self::linked_list::LinkedListAllocator;
 
-pub const HEAP_START: usize = 0o_000_001_000_000_0000;
+pub const HEAP_START: usize = 0xFFFFFFFFFFF00000;
 pub const HEAP_SIZE: usize = 1000 * 1024; // 100 KiB
 
 fn align_up(addr: usize, align: usize) -> usize {

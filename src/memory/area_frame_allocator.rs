@@ -1,4 +1,5 @@
 use crate::memory::{Frame, FrameAllocator};
+use crate::println;
 use multiboot2::MemoryArea;
 
 pub struct AreaFrameAllocator<'a> {
@@ -28,6 +29,7 @@ impl<'a> AreaFrameAllocator<'a> {
             multiboot_start: Frame::containing_address(multiboot_start),
             multiboot_end: Frame::containing_address(multiboot_end),
         };
+
         allocator.choose_next_area();
         allocator
     }

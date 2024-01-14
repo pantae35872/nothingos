@@ -18,7 +18,7 @@ test-args = [
     "-display", "none", "-enable-kvm", "-cpu", "host,+rdrand"
 ]
 run-args = [
-    "-m", "8G", "-hda", "disk.disk", "-boot", "d", "-enable-kvm", "-cpu", "host,+rdrand"
+    "-m", "8G", "-drive", "id=disk,file=disk.disk,if=none,format=qcow2", "-device", "ahci,id=ahci", "-device", "ide-hd,drive=disk,bus=ahci.0", "-boot", "d", "-enable-kvm", "-cpu", "host,+rdrand"
 ]
 
 [features]

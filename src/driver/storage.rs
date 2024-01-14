@@ -1,3 +1,4 @@
+pub mod ahci_driver;
 pub mod ata_driver;
 
 use core::{f64, future};
@@ -83,14 +84,16 @@ impl CHS {
 pub trait Drive {
     fn write(
         &mut self,
-        sector: u64,
+        from_sector: u64,
+        to_sector: u64,
         data: &[u8],
         count: usize,
     ) -> impl future::Future<Output = Result<(), Box<OSError>>> + Send;
 
     fn read(
         &mut self,
-        sector: u64,
+        from_sector: u64,
+        to_sector: u64,
         data: &mut [u8],
         count: usize,
     ) -> impl future::Future<Output = Result<(), Box<OSError>>> + Send;

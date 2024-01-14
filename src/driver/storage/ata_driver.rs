@@ -43,11 +43,11 @@ impl ATADrive {
     }
 
     pub async fn identify(&mut self) {
-        self.device_port.write(inline_if!(self.master, 0xA0, 0xB0));
+        self.device_port.write(&inline_if!(self.master, 0xA0, 0xB0));
 
-        self.control_port.write(0);
+        self.control_port.write(&0);
 
-        self.device_port.write(0xA0);
+        self.device_port.write(&0xA0);
 
         let mut status = self.command_port.read();
 
@@ -55,13 +55,13 @@ impl ATADrive {
             return;
         }
 
-        self.device_port.write(inline_if!(self.master, 0xA0, 0xB0));
+        self.device_port.write(&inline_if!(self.master, 0xA0, 0xB0));
 
-        self.sector_count_port.write(0);
-        self.lba_low_port.write(0);
-        self.lba_mid_port.write(0);
-        self.lba_hi_port.write(0);
-        self.command_port.write(0xEC);
+        self.sector_count_port.write(&0);
+        self.lba_low_port.write(&0);
+        self.lba_mid_port.write(&0);
+        self.lba_hi_port.write(&0);
+        self.command_port.write(&0xEC);
 
         status = self.command_port.read();
 
@@ -99,9 +99,92 @@ impl ATADrive {
         self.lba_end = ((lba_end_high << 16) | lba_end_low) - 1;
     }
 
+    async fn write_once(
+        &mut self,
+        sector: u64,
+        data: &[u8],
+        count: usize,
+    ) -> Result<(), Box<OSError>> {
+        if (sector & 0xF0000000) != 0 || count > self.bytes_per_sector {
+            return Err(Box::new(OSError::new("Drive error")));
+        }
+
+        self.device_port
+            .write(&((inline_if!(self.master, 0xE0, 0xF0) | ((sector & 0x0F000000) >> 24)) as u8));
+        self.error_port.write(&0);
+        self.sector_count_port.write(&1);
+
+        self.lba_low_port.write(&((sector & 0x000000FF) as u8));
+        self.lba_mid_port
+            .write(&(((sector & 0x0000FF00) >> 8) as u8));
+        self.lba_hi_port
+            .write(&(((sector & 0x00FF0000) >> 16) as u8));
+        self.command_port.write(&0x30);
+
+        for i in (0..count).step_by(2) {
+            let mut wdata = data[i] as u16;
+            if i + 1 < count {
+                wdata |= (data[i + 1] as u16) << 8;
+            }
+
+            self.data_port.write(&wdata);
+        }
+
+        for _i in ((count + (count % 2))..self.bytes_per_sector).step_by(2) {
+            self.data_port.write(&0x0000);
+        }
+        self.flush().await?;
+        return Ok(());
+    }
+
+    async fn read_once(
+        &mut self,
+        sector: u64,
+        data: &mut [u8],
+        count: usize,
+    ) -> Result<(), Box<OSError>> {
+        if (sector & 0xF0000000) != 0 || count > self.bytes_per_sector {
+            return Err(Box::new(OSError::new("Drive error")));
+        }
+
+        self.device_port
+            .write(&((inline_if!(self.master, 0xE0, 0xF0) | ((sector & 0x0F000000) >> 24)) as u8));
+        self.error_port.write(&0);
+        self.sector_count_port.write(&1);
+
+        self.lba_low_port.write(&((sector & 0x000000FF) as u8));
+        self.lba_mid_port
+            .write(&(((sector & 0x0000FF00) >> 8) as u8));
+        self.lba_hi_port
+            .write(&(((sector & 0x00FF0000) >> 16) as u8));
+        self.command_port.write(&0x20);
+
+        DriveAsync::new(&self.command_port).await;
+
+        let status = self.command_port.read();
+
+        if (status & 0x01) != 0 {
+            return Err(Box::new(OSError::new("Drive error")));
+        }
+
+        for i in (0..count).step_by(2) {
+            let wdata = self.data_port.read();
+
+            data[i] = (wdata & 0xFF) as u8;
+            if i + 1 < count {
+                data[i + 1] = ((wdata >> 8) & 0xFF) as u8;
+            }
+        }
+
+        for _i in ((count + (count % 2))..self.bytes_per_sector).step_by(2) {
+            self.data_port.read();
+        }
+        return Ok(());
+    }
+
     pub async fn flush(&mut self) -> Result<(), Box<OSError>> {
-        self.device_port.write(inline_if!(self.master, 0xE0, 0xF0));
-        self.command_port.write(0xE7);
+        self.device_port.write(&inline_if!(self.master, 0xE0, 0xF0));
+        self.command_port.write(&0xE7);
 
         DriveAsync::new(&self.command_port).await;
 
@@ -142,76 +225,52 @@ impl Drive for ATADrive {
         self.lba_end
     }
 
-    async fn write(&mut self, sector: u64, data: &[u8], count: usize) -> Result<(), Box<OSError>> {
-        if (sector & 0xF0000000) != 0 || count > self.bytes_per_sector {
-            return Err(Box::new(OSError::new("Drive error")));
+    async fn write(
+        &mut self,
+        from_sector: u64,
+        to_sector: u64,
+        data: &[u8],
+        count: usize,
+    ) -> Result<(), Box<OSError>> {
+        let mut count1 = 0;
+        let mut last_sector_byte_count = count % 512;
+        if last_sector_byte_count == 0 {
+            last_sector_byte_count = 512;
         }
-
-        self.device_port
-            .write((inline_if!(self.master, 0xE0, 0xF0) | ((sector & 0x0F000000) >> 24)) as u8);
-        self.error_port.write(0);
-        self.sector_count_port.write(1);
-
-        self.lba_low_port.write((sector & 0x000000FF) as u8);
-        self.lba_mid_port.write(((sector & 0x0000FF00) >> 8) as u8);
-        self.lba_hi_port.write(((sector & 0x00FF0000) >> 16) as u8);
-        self.command_port.write(0x30);
-
-        for i in (0..count).step_by(2) {
-            let mut wdata = data[i] as u16;
-            if i + 1 < count {
-                wdata |= (data[i + 1] as u16) << 8;
-            }
-
-            self.data_port.write(wdata);
+        for i in from_sector..=to_sector {
+            let chunk_size = if i == to_sector {
+                last_sector_byte_count
+            } else {
+                512
+            };
+            self.write_once(i, &data[count1..(count1 + chunk_size)], chunk_size)
+                .await?;
+            count1 += chunk_size;
         }
-
-        for _i in ((count + (count % 2))..self.bytes_per_sector).step_by(2) {
-            self.data_port.write(0x0000);
-        }
-        self.flush().await?;
         return Ok(());
     }
 
     async fn read(
         &mut self,
-        sector: u64,
+        from_sector: u64,
+        to_sector: u64,
         data: &mut [u8],
         count: usize,
     ) -> Result<(), Box<OSError>> {
-        if (sector & 0xF0000000) != 0 || count > self.bytes_per_sector {
-            return Err(Box::new(OSError::new("Drive error")));
+        let mut count1 = 0;
+        let mut last_sector_byte_count = count % 512;
+        if last_sector_byte_count == 0 {
+            last_sector_byte_count = 512;
         }
-
-        self.device_port
-            .write((inline_if!(self.master, 0xE0, 0xF0) | ((sector & 0x0F000000) >> 24)) as u8);
-        self.error_port.write(0);
-        self.sector_count_port.write(1);
-
-        self.lba_low_port.write((sector & 0x000000FF) as u8);
-        self.lba_mid_port.write(((sector & 0x0000FF00) >> 8) as u8);
-        self.lba_hi_port.write(((sector & 0x00FF0000) >> 16) as u8);
-        self.command_port.write(0x20);
-
-        DriveAsync::new(&self.command_port).await;
-
-        let status = self.command_port.read();
-
-        if (status & 0x01) != 0 {
-            return Err(Box::new(OSError::new("Drive error")));
-        }
-
-        for i in (0..count).step_by(2) {
-            let wdata = self.data_port.read();
-
-            data[i] = (wdata & 0xFF) as u8;
-            if i + 1 < count {
-                data[i + 1] = ((wdata >> 8) & 0xFF) as u8;
-            }
-        }
-
-        for _i in ((count + (count % 2))..self.bytes_per_sector).step_by(2) {
-            self.data_port.read();
+        for i in from_sector..=to_sector {
+            let chunk_size = if i == to_sector {
+                last_sector_byte_count
+            } else {
+                512
+            };
+            self.read_once(i, &mut data[count1..(count1 + chunk_size)], chunk_size)
+                .await?;
+            count1 += chunk_size;
         }
         return Ok(());
     }

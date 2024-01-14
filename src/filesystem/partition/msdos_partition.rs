@@ -110,14 +110,10 @@ where
 
 impl<'a, T: Drive> MSDosPartition<'a, T> {
     pub async fn new(drive: &'a mut T) -> Result<Self, Box<OSError>> {
-        let mut msdos_partition = Self {
+        Ok(Self {
             master_boot_record: MasterBootRecord::new()?,
             drive,
-        };
-
-        msdos_partition.load_mbr().await?;
-
-        return Ok(msdos_partition);
+        })
     }
 
     pub async fn load_mbr(&mut self) -> Result<(), Box<OSError>> {
@@ -129,7 +125,7 @@ impl<'a, T: Drive> MSDosPartition<'a, T> {
         };
 
         self.drive
-            .read(0, mbr_bytes, size_of::<MasterBootRecord>())
+            .read(0, 0, mbr_bytes, size_of::<MasterBootRecord>())
             .await?;
 
         if self.master_boot_record.magicnumber != 0xAA55 {
@@ -147,7 +143,7 @@ impl<'a, T: Drive> MSDosPartition<'a, T> {
             )
         };
         self.drive
-            .write(0, mbr_bytes, size_of::<MasterBootRecord>())
+            .write(0, 0, mbr_bytes, size_of::<MasterBootRecord>())
             .await?;
         Ok(())
     }
