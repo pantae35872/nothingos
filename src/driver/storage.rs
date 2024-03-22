@@ -5,6 +5,7 @@ use core::{f64, future};
 
 use alloc::boxed::Box;
 
+use crate::memory::AreaFrameAllocator;
 use crate::utils::floorf64;
 use crate::utils::oserror::OSError;
 
@@ -85,7 +86,6 @@ pub trait Drive {
     fn write(
         &mut self,
         from_sector: u64,
-        to_sector: u64,
         data: &[u8],
         count: usize,
     ) -> impl future::Future<Output = Result<(), Box<OSError>>> + Send;
@@ -93,10 +93,13 @@ pub trait Drive {
     fn read(
         &mut self,
         from_sector: u64,
-        to_sector: u64,
         data: &mut [u8],
         count: usize,
     ) -> impl future::Future<Output = Result<(), Box<OSError>>> + Send;
 
     fn lba_end(&self) -> u64;
+}
+
+pub fn init(frame_allocator: &mut AreaFrameAllocator) {
+    ahci_driver::init(frame_allocator);
 }

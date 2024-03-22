@@ -3,6 +3,11 @@ use core::{ptr, u8};
 use alloc::alloc::*;
 pub mod linked_list;
 
+use crate::{
+    memory::{paging::Page, AreaFrameAllocator},
+    EntryFlags, ACTIVE_TABLE,
+};
+
 use self::linked_list::LinkedListAllocator;
 
 pub const HEAP_START: usize = 0xFFFFFFFFFFF00000;
@@ -53,7 +58,18 @@ unsafe impl GlobalAlloc for Locked<LinkedListAllocator> {
 
 #[global_allocator]
 static GLOBAL_ALLOCATOR: Locked<LinkedListAllocator> = Locked::new(LinkedListAllocator::new());
-pub fn init_heap() {
+
+pub fn init(frame_allocator: &mut AreaFrameAllocator) {
+    let heap_start_page = Page::containing_address(HEAP_START);
+    let heap_end_page = Page::containing_address(HEAP_START + HEAP_SIZE - 1);
+
+    for page in Page::range_inclusive(heap_start_page, heap_end_page) {
+        ACTIVE_TABLE
+            .get()
+            .expect("Active table is not inititalize")
+            .lock()
+            .map(page, EntryFlags::WRITABLE, frame_allocator);
+    }
     unsafe {
         GLOBAL_ALLOCATOR.lock().init(HEAP_START, HEAP_SIZE);
     }

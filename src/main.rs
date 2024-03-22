@@ -13,14 +13,17 @@ extern crate multiboot2;
 extern crate nothingos;
 extern crate spin;
 
+use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
 use multiboot2::BootInformationHeader;
-use nothingos::driver::storage::ahci_driver::AHCIDrive;
+use nothingos::driver::storage::ahci_driver::AhciController;
 use nothingos::driver::storage::ata_driver::ATADrive;
+use nothingos::driver::storage::{ahci_driver, Drive};
 use nothingos::filesystem::partition::gpt_partition::GPTPartitions;
 use nothingos::task::executor::{AwaitType, Executor};
-use nothingos::{driver, println};
+use nothingos::{driver, print, println};
+use spin::Mutex;
 use uguid::guid;
 
 pub fn hlt_loop() -> ! {
@@ -35,11 +38,14 @@ pub fn start(multiboot_information_address: *const BootInformationHeader) -> ! {
     let mut executor = Executor::new();
     executor.spawn(
         async {
-            AHCIDrive::new().await;
-            /*let mut drive = ATADrive::new(0x1F0, true);
+            let mut controller = ahci_driver::DRIVER
+                .get()
+                .expect("AHCI Driver is not initialize")
+                .lock();
+            let drive = controller.get_drive(&0).await.expect("Cannot get drive");
+            let mut data: [u8; 8196] = [0u8; 8196];
             drive.identify().await;
-
-            let mut gpt = GPTPartitions::new(&mut drive).await.expect("Error");
+            /*let mut gpt = GPTPartitions::new(drive).await.expect("Error");
             gpt.format().await.expect("format partition error");
             gpt.set_partiton(
                 1,
@@ -77,7 +83,7 @@ pub fn start(multiboot_information_address: *const BootInformationHeader) -> ! {
             )
             .await
             .expect("Write partition error");
-            let abc = gpt.read_partition(2).await.expect("");
+            let abc = gpt.read_partition(3).await.expect("");
             println!("{:?}", abc.get_partition_name());*/
         },
         AwaitType::AlwaysPoll,
