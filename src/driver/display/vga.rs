@@ -1,10 +1,12 @@
-use core::ptr;
+use core::alloc::Layout;
+use core::mem::align_of;
 use core::ptr::write_volatile;
+use core::{ptr, u8, usize};
 
-use lazy_static::lazy_static;
-
-pub const BACKBUFFER_START: usize = 0xFFFFFFFFFF000000;
-pub const BACKBUFFER_SIZE: usize = 0xFA000;
+use alloc::alloc::alloc;
+use conquer_once::spin::OnceCell;
+use spin::Mutex;
+use x86_64::VirtAddr;
 
 use crate::utils::port::Port8Bit;
 
@@ -19,11 +21,10 @@ pub struct Vga {
     attribute_controller_index_port: Port8Bit,
     attribute_controller_write_port: Port8Bit,
     attribute_controller_reset_port: Port8Bit,
+    backbuffer_address: VirtAddr,
 }
 
-lazy_static! {
-    pub static ref VGA: Vga = Vga::new();
-}
+pub static DRIVER: OnceCell<Mutex<Vga>> = OnceCell::uninit();
 
 impl Vga {
     pub fn new() -> Self {
@@ -38,6 +39,11 @@ impl Vga {
             attribute_controller_index_port: Port8Bit::new(0x3c0),
             attribute_controller_write_port: Port8Bit::new(0x3c0),
             attribute_controller_reset_port: Port8Bit::new(0x3da),
+            backbuffer_address: unsafe {
+                VirtAddr::new(alloc(
+                    Layout::from_size_align(0xFA00, align_of::<u8>()).expect("Layout not valid"),
+                ) as u64)
+            },
         }
     }
 
@@ -114,7 +120,7 @@ impl Vga {
         let segment_number = self.graphic_controller_data_port.read() & (3 << 2);
         match segment_number {
             n if 0 << 2 == n => 0x00000,
-            n if 1 << 2 == n => BACKBUFFER_START,
+            n if 1 << 2 == n => self.backbuffer_address.as_u64() as usize,
             n if 2 << 2 == n => 0xB0000,
             n if 3 << 2 == n => 0xB8000,
             _ => 0,
@@ -135,13 +141,21 @@ impl Vga {
 
     pub fn swap(&self) {
         unsafe {
-            ptr::copy_nonoverlapping(BACKBUFFER_START as *const u8, 0xA0000 as *mut u8, 0xFA00);
+            ptr::copy_nonoverlapping(
+                self.backbuffer_address.as_ptr::<u8>(),
+                0xA0000 as *mut u8,
+                0xFA00,
+            );
         }
     }
 
     pub fn clear(&self) {
         unsafe {
-            ptr::write_bytes(BACKBUFFER_START as *mut u8, 0, 0xFA000);
+            ptr::write_bytes(self.backbuffer_address.as_mut_ptr::<u8>(), 0, 0xFA00);
         }
     }
+}
+
+pub fn init() {
+    DRIVER.init_once(|| Mutex::from(Vga::new()));
 }

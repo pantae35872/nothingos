@@ -1,4 +1,9 @@
+use conquer_once::spin::OnceCell;
+use spin::Mutex;
+
 use crate::utils::port::Port32Bit;
+
+pub static DRIVER: OnceCell<Mutex<PCIControler>> = OnceCell::uninit();
 
 pub struct PCIControler {
     data_port: Port32Bit,
@@ -41,4 +46,8 @@ impl PCIControler {
         self.command_port.write(&id);
         self.data_port.write(value);
     }
+}
+
+pub fn init() {
+    DRIVER.init_once(|| Mutex::from(PCIControler::new()));
 }

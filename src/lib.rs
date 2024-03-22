@@ -49,6 +49,8 @@ impl EntryFlags {
     }
 }
 
+static ACTIVE_TABLE: OnceCell<Mutex<ActivePageTable>> = OnceCell::uninit();
+
 extern crate alloc;
 extern crate core;
 extern crate lazy_static;
@@ -62,28 +64,28 @@ pub mod allocator;
 pub mod driver;
 pub mod filesystem;
 pub mod gdt;
-pub mod gui;
 pub mod interrupt;
 pub mod memory;
 pub mod print;
-pub mod renderer;
 pub mod task;
 pub mod utils;
-pub mod vga;
 
 use core::panic::PanicInfo;
+use core::usize;
 
+use conquer_once::spin::OnceCell;
 use multiboot2::{BootInformation, BootInformationHeader, ElfSection};
+use spin::Mutex;
 use x86_64::registers::control::Cr0Flags;
 use x86_64::registers::model_specific::EferFlags;
+use x86_64::{PhysAddr, VirtAddr};
 
-use self::allocator::{init_heap, HEAP_SIZE, HEAP_START};
-use self::driver::storage::ahci_driver::{AHCIDrive, AHCI_SIZE, AHCI_START};
+use crate::driver::storage::ahci_driver::{self, ABAR_SIZE, ABAR_START};
+
 use self::interrupt::PICS;
 use self::memory::paging::{ActivePageTable, Page};
 use self::memory::{area_frame_allocator, AreaFrameAllocator, Frame, FrameAllocator};
 use self::print::PRINT;
-use self::vga::{BACKBUFFER_SIZE, BACKBUFFER_START};
 
 pub trait Testable {
     fn run(&self) -> ();
@@ -139,6 +141,21 @@ pub fn hlt_loop() -> ! {
     }
 }
 
+pub fn get_physical(address: VirtAddr) -> Option<PhysAddr> {
+    if let Some(active_page_table) = ACTIVE_TABLE.get() {
+        if let Some(physical_address) = active_page_table
+            .lock()
+            .translate(address.as_u64() as usize)
+        {
+            Some(PhysAddr::new(physical_address as u64))
+        } else {
+            None
+        }
+    } else {
+        return None;
+    }
+}
+
 pub fn init(multiboot_information_address: *const BootInformationHeader) {
     PRINT.lock().set_color(&0xb, &0);
     gdt::init();
@@ -168,34 +185,14 @@ pub fn init(multiboot_information_address: *const BootInformationHeader) {
     );
     enable_nxe_bit();
     enable_write_protect_bit();
-    let mut active_table = memory::remap_the_kernel(&mut frame_allocator, &boot_info);
-    let heap_start_page = Page::containing_address(HEAP_START);
-    let heap_end_page = Page::containing_address(HEAP_START + HEAP_SIZE - 1);
+    let active_table = memory::remap_the_kernel(&mut frame_allocator, &boot_info);
 
-    for page in Page::range_inclusive(heap_start_page, heap_end_page) {
-        active_table.map(page, EntryFlags::WRITABLE, &mut frame_allocator);
-    }
-    let backbuffer_start_page = Page::containing_address(BACKBUFFER_START);
-    let backbuffer_end_page = Page::containing_address(BACKBUFFER_START + BACKBUFFER_SIZE - 1);
+    ACTIVE_TABLE
+        .try_init_once(|| Mutex::from(active_table))
+        .expect("Failed to initialize active table");
 
-    for page in Page::range_inclusive(backbuffer_start_page, backbuffer_end_page) {
-        active_table.map(page, EntryFlags::WRITABLE, &mut frame_allocator);
-    }
-    let ahci_start_page = Page::containing_address(AHCI_START);
-    let ahci_end_page = Page::containing_address(AHCI_START + AHCI_SIZE);
-    let ahci_address = AHCIDrive::get_ahci_address();
-    if let Some(ahci_address) = ahci_address {
-        for (page, frame) in
-            Page::range_inclusive(ahci_start_page, ahci_end_page).zip(Frame::range_inclusive(
-                Frame::containing_address(ahci_address as usize),
-                Frame::containing_address(ahci_address as usize + AHCI_SIZE),
-            ))
-        {
-            active_table.map_to(page, frame, EntryFlags::NO_CACHE, &mut frame_allocator);
-        }
-    }
-    init_heap();
-    driver::init();
+    allocator::init(&mut frame_allocator);
+    driver::init(&mut frame_allocator);
     task::init();
 }
 

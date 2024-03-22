@@ -228,24 +228,16 @@ impl Drive for ATADrive {
     async fn write(
         &mut self,
         from_sector: u64,
-        to_sector: u64,
-        data: &[u8],
+        buffer: &[u8],
         count: usize,
     ) -> Result<(), Box<OSError>> {
-        let mut count1 = 0;
-        let mut last_sector_byte_count = count % 512;
-        if last_sector_byte_count == 0 {
-            last_sector_byte_count = 512;
-        }
-        for i in from_sector..=to_sector {
-            let chunk_size = if i == to_sector {
-                last_sector_byte_count
-            } else {
-                512
-            };
-            self.write_once(i, &data[count1..(count1 + chunk_size)], chunk_size)
-                .await?;
-            count1 += chunk_size;
+        for i in 0..count {
+            self.write_once(
+                from_sector + i as u64,
+                &buffer[(512 * i)..(512 * (i + 1))],
+                512,
+            )
+            .await?;
         }
         return Ok(());
     }
@@ -253,24 +245,16 @@ impl Drive for ATADrive {
     async fn read(
         &mut self,
         from_sector: u64,
-        to_sector: u64,
-        data: &mut [u8],
+        buffer: &mut [u8],
         count: usize,
     ) -> Result<(), Box<OSError>> {
-        let mut count1 = 0;
-        let mut last_sector_byte_count = count % 512;
-        if last_sector_byte_count == 0 {
-            last_sector_byte_count = 512;
-        }
-        for i in from_sector..=to_sector {
-            let chunk_size = if i == to_sector {
-                last_sector_byte_count
-            } else {
-                512
-            };
-            self.read_once(i, &mut data[count1..(count1 + chunk_size)], chunk_size)
-                .await?;
-            count1 += chunk_size;
+        for i in 0..count {
+            self.read_once(
+                from_sector + i as u64,
+                &mut buffer[(512 * i)..(512 * (i + 1))],
+                512,
+            )
+            .await?;
         }
         return Ok(());
     }

@@ -188,6 +188,7 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
 }
 
 extern "x86-interrupt" fn primary_ata_interrupt_handler(_stack_frame: InterruptStackFrame) {
+    println!("a");
     unsafe {
         PICS.lock()
             .notify_end_of_interrupt(InterruptIndex::PrimaryATA.as_u8());
@@ -195,6 +196,7 @@ extern "x86-interrupt" fn primary_ata_interrupt_handler(_stack_frame: InterruptS
 }
 
 extern "x86-interrupt" fn secondary_ata_interrupt_handler(_stack_frame: InterruptStackFrame) {
+    println!("aa");
     unsafe {
         PICS.lock()
             .notify_end_of_interrupt(InterruptIndex::SecondaryATA.as_u8());

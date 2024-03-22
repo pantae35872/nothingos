@@ -8,9 +8,9 @@ use uguid::Guid;
 use uuid::Uuid;
 
 use crate::driver::storage::{Drive, CHS};
-use crate::println;
 use crate::utils::floorf64;
 use crate::utils::oserror::OSError;
+use crate::{print, println};
 
 use super::msdos_partition::MSDosPartition;
 
@@ -240,9 +240,7 @@ impl<'a, T: Drive> GPTPartitions<'a, T> {
             )
         };
 
-        self.drive
-            .read(1, 1, header_bytes, size_of::<PartitionTableHeader>())
-            .await?;
+        self.drive.read(1, header_bytes, 1).await?;
 
         self.entries_per_sector = 512 / self.partition_table_header.partition_entry_size;
         self.sector_number_entries = (self.partition_table_header.number_partition_entries
@@ -258,11 +256,8 @@ impl<'a, T: Drive> GPTPartitions<'a, T> {
         self.drive
             .read(
                 self.partition_table_header.start_partition_entry_lba,
-                ((self.partition_table_header.number_partition_entries / self.entries_per_sector)
-                    + 1)
-                .into(),
                 entries_bytes,
-                size_of::<PartitionEntries>() * self.sector_number_entries,
+                self.sector_number_entries,
             )
             .await?;
 
@@ -273,7 +268,6 @@ impl<'a, T: Drive> GPTPartitions<'a, T> {
     async fn save_gpt(&mut self) -> Result<(), Box<OSError>> {
         let mut crc32 = crc32::Digest::new(crc32::IEEE);
         let mut mbr = MSDosPartition::new(self.drive).await?;
-
         mbr.set_partition(
             self.protective_master_boot_record.os_type,
             0,
@@ -304,40 +298,26 @@ impl<'a, T: Drive> GPTPartitions<'a, T> {
         self.partition_table_header.checksum = crc32.sum32();
 
         self.drive
-            .write(1, 1, header_bytes, size_of::<PartitionTableHeader>())
+            .write(1, header_bytes, size_of::<PartitionTableHeader>() / 512)
             .await?;
 
         let start_lba = self.partition_table_header.start_partition_entry_lba;
-        let end_lba = self.sector_number_entries + 1;
 
         self.drive
-            .write(
-                start_lba,
-                end_lba as u64,
-                entries_bytes,
-                size_of::<PartitionEntries>() * self.sector_number_entries,
-            )
+            .write(start_lba, entries_bytes, self.sector_number_entries)
             .await?;
 
         self.drive
             .write(
                 self.drive.lba_end(),
-                self.drive.lba_end(),
                 header_bytes,
-                size_of::<PartitionTableHeader>(),
+                size_of::<PartitionTableHeader>() / 512,
             )
             .await?;
 
         let start_lba = self.drive.lba_end() - self.sector_number_entries as u64;
-        let end_lba = self.drive.lba_end()
-            - (self.partition_table_header.start_partition_entry_lba - 1) as u64;
         self.drive
-            .write(
-                start_lba,
-                end_lba,
-                entries_bytes,
-                size_of::<PartitionEntries>() * self.sector_number_entries,
-            )
+            .write(start_lba, entries_bytes, self.sector_number_entries)
             .await?;
 
         Ok(())
@@ -370,9 +350,8 @@ impl<'a, T: Drive> GPTPartitions<'a, T> {
             self.drive
                 .read(
                     self.drive.lba_end(),
-                    self.drive.lba_end(),
                     header_bytes,
-                    size_of::<PartitionTableHeader>(),
+                    size_of::<PartitionTableHeader>() / 512,
                 )
                 .await?;
             crc32.reset();
@@ -383,7 +362,7 @@ impl<'a, T: Drive> GPTPartitions<'a, T> {
             {
                 println!("Header backup is valid, restoring from backup");
                 self.drive
-                    .write(1, 1, header_bytes, size_of::<PartitionTableHeader>());
+                    .write(1, header_bytes, size_of::<PartitionTableHeader>() / 512);
             } else {
                 return Err(Box::new(OSError::new(
                     "Your header backup is not valid, drive is fully corrupted",
@@ -404,16 +383,9 @@ impl<'a, T: Drive> GPTPartitions<'a, T> {
                 - ((self.partition_table_header.number_partition_entries / self.entries_per_sector)
                     as u64
                     + 1);
-            let end_lba = self.drive.lba_end()
-                - (self.partition_table_header.start_partition_entry_lba - 1) as u64;
 
             self.drive
-                .read(
-                    start_lba,
-                    end_lba,
-                    entries_bytes,
-                    size_of::<PartitionEntries>() * self.sector_number_entries,
-                )
+                .read(start_lba, entries_bytes, self.sector_number_entries)
                 .await?;
             crc32.reset();
             crc32.write(&entries_bytes);
@@ -421,13 +393,8 @@ impl<'a, T: Drive> GPTPartitions<'a, T> {
             if self.partition_table_header.partition_entry_array_checksum == crc32.sum32() {
                 println!("Entries backup is valid, restoring from backup");
                 let start_lba = self.partition_table_header.start_partition_entry_lba;
-                let end_lba = self.sector_number_entries + 1;
-                self.drive.write(
-                    start_lba,
-                    end_lba as u64,
-                    entries_bytes,
-                    size_of::<PartitionEntries>() * self.sector_number_entries,
-                );
+                self.drive
+                    .write(start_lba, entries_bytes, self.sector_number_entries);
             } else {
                 return Err(Box::new(OSError::new(
                     "Your entries backup is not valid, drive is fully corrupted",

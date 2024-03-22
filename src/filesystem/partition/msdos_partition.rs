@@ -124,9 +124,7 @@ impl<'a, T: Drive> MSDosPartition<'a, T> {
             )
         };
 
-        self.drive
-            .read(0, 0, mbr_bytes, size_of::<MasterBootRecord>())
-            .await?;
+        self.drive.read(0, mbr_bytes, 1).await?;
 
         if self.master_boot_record.magicnumber != 0xAA55 {
             return Err(Box::new(OSError::new("Not valid ms dos drive.")));
@@ -142,9 +140,7 @@ impl<'a, T: Drive> MSDosPartition<'a, T> {
                 size_of::<MasterBootRecord>(),
             )
         };
-        self.drive
-            .write(0, 0, mbr_bytes, size_of::<MasterBootRecord>())
-            .await?;
+        self.drive.write(0, mbr_bytes, 1).await?;
         Ok(())
     }
 
