@@ -70,12 +70,16 @@ pub mod print;
 pub mod task;
 pub mod utils;
 
+use core::arch::global_asm;
+use core::fmt::Write;
 use core::panic::PanicInfo;
 use core::usize;
 
 use conquer_once::spin::OnceCell;
-use multiboot2::{BootInformation, BootInformationHeader, ElfSection};
+use multiboot2::{BootInformation, BootInformationHeader, ElfSection, FramebufferType};
+use print::DRIVER;
 use spin::Mutex;
+use uart_16550::SerialPort;
 use x86_64::registers::control::Cr0Flags;
 use x86_64::registers::model_specific::EferFlags;
 use x86_64::{PhysAddr, VirtAddr};
@@ -85,7 +89,6 @@ use crate::driver::storage::ahci_driver::{self, ABAR_SIZE, ABAR_START};
 use self::interrupt::PICS;
 use self::memory::paging::{ActivePageTable, Page};
 use self::memory::{area_frame_allocator, AreaFrameAllocator, Frame, FrameAllocator};
-use self::print::PRINT;
 
 pub trait Testable {
     fn run(&self) -> ();
@@ -157,7 +160,6 @@ pub fn get_physical(address: VirtAddr) -> Option<PhysAddr> {
 }
 
 pub fn init(multiboot_information_address: *const BootInformationHeader) {
-    PRINT.lock().set_color(&0xb, &0);
     gdt::init();
     interrupt::init_idt();
     unsafe { PICS.lock().initialize() };
@@ -186,11 +188,31 @@ pub fn init(multiboot_information_address: *const BootInformationHeader) {
     enable_nxe_bit();
     enable_write_protect_bit();
     let active_table = memory::remap_the_kernel(&mut frame_allocator, &boot_info);
-
     ACTIVE_TABLE
         .try_init_once(|| Mutex::from(active_table))
         .expect("Failed to initialize active table");
-
+    let mut buffer_addr = None;
+    if let Some(framebuffer) = boot_info.framebuffer_tag() {
+        if let Ok(buffer) = framebuffer {
+            if let Ok(buffer_type) = buffer.buffer_type() {
+                if buffer_type == FramebufferType::Text {
+                    let vga_buffer_frame = Frame::containing_address(buffer.address() as usize);
+                    ACTIVE_TABLE.get().unwrap().lock().identity_map(
+                        vga_buffer_frame,
+                        EntryFlags::WRITABLE,
+                        &mut frame_allocator,
+                    );
+                    buffer_addr = Some(buffer.address());
+                }
+            }
+        }
+    }
+    if let Some(buffer) = buffer_addr {
+        print::init(buffer, 0xb, 0);
+    } else {
+        print::init(0xb8000, 0xb, 0);
+    }
+    println!("{:?}", boot_info.memory_map_tag().unwrap().memory_areas());
     allocator::init(&mut frame_allocator);
     driver::init(&mut frame_allocator);
     task::init();

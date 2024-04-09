@@ -3,7 +3,6 @@ build-std-features = ["compiler-builtins-mem"]
 build-std = ["core", "alloc", "compiler_builtins"]
 
 [build]
-rustflags=["--emit=obj"]
 target = "x86_64.json"
 
 [target.'cfg(target_os = "none")']

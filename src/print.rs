@@ -1,13 +1,13 @@
 use core::fmt::{Arguments, Write};
 use core::{char, fmt, u8};
 
+use conquer_once::spin::OnceCell;
 use lazy_static::lazy_static;
 use spin::Mutex;
 use x86_64::instructions::interrupts;
+use x86_64::{PhysAddr, VirtAddr};
 
-lazy_static! {
-    pub static ref PRINT: Mutex<Print> = Mutex::new(Print::new());
-}
+pub static DRIVER: OnceCell<Mutex<Print>> = OnceCell::uninit();
 
 #[macro_export]
 macro_rules! print {
@@ -18,7 +18,11 @@ macro_rules! print {
 
 pub fn _print(args: Arguments) {
     interrupts::without_interrupts(|| {
-        PRINT.lock().write_fmt(args).unwrap();
+        if let Some(driver) = DRIVER.get() {
+            driver.lock().write_fmt(args).unwrap();
+        } else {
+            panic!("Use of uninitialize driver (Print driver)");
+        }
     });
 }
 
@@ -27,6 +31,16 @@ macro_rules! println {
     ($($arg:tt)*) => {{
         $crate::print!("{}\n", format_args!($($arg)*));
     }};
+}
+
+pub fn init(buffer_addr: u64, foreground_color: u8, background_color: u8) {
+    DRIVER.init_once(|| {
+        Mutex::new(Print::new(
+            buffer_addr,
+            &foreground_color,
+            &background_color,
+        ))
+    });
 }
 
 #[derive(Clone, Copy)]
@@ -61,18 +75,20 @@ pub struct Print {
     row: i32,
     color: u8,
     buffer: [Char; BUFFER_SIZE],
+    buffer_addr: PhysAddr,
 }
 
 impl Print {
-    pub fn new() -> Self {
+    pub fn new(buffer_addr: u64, foreground: &u8, background: &u8) -> Self {
         return Self {
             col: 0,
             row: 0,
-            color: 0,
+            color: foreground + (background << 4),
             buffer: [Char {
                 charactor: 0,
                 color: 0,
             }; BUFFER_SIZE],
+            buffer_addr: PhysAddr::new(buffer_addr),
         };
     }
 
@@ -128,8 +144,9 @@ impl Print {
     fn update(&self) {
         for (i, v) in self.buffer.iter().enumerate() {
             unsafe {
-                (*BUFFER_ADRESS.offset(i as isize)).charactor = v.charactor;
-                (*BUFFER_ADRESS.offset(i as isize)).color = v.color
+                (*(self.buffer_addr.as_u64() as *mut Char).offset(i as isize)).charactor =
+                    v.charactor;
+                (*(self.buffer_addr.as_u64() as *mut Char).offset(i as isize)).color = v.color
             }
         }
     }

@@ -21,14 +21,11 @@ test-args = [
     "-display", "none", "-enable-kvm", "-cpu", "host,+rdrand"
 ]
 run-args = [
-   "-m", "1G", "-drive", "id=disk,file=disk.disk,if=none,format=qcow2", "-device", "ahci,id=ahci", "-device", "ide-hd,drive=disk,bus=ahci.0", "-boot", "d", "-enable-kvm", "-cpu", "host,+rdrand", "-machine", "kernel_irqchip=split"
+  "-m", "1G", "-drive", "id=disk,file=disk.disk,if=none,format=qcow2", "-device", "ahci,id=ahci", "-device", "ide-hd,drive=disk,bus=ahci.0", "-boot", "d", "-enable-kvm", "-cpu", "host,+rdrand", "-machine", "kernel_irqchip=split"
 ]
 
 [features]
 test = []
-
-[lib]
-crate-type = ["rlib", "staticlib"]
 
 [dependencies]
 fmt = "0.1.0"
@@ -46,7 +43,6 @@ getrandom = { version = "0.2.11", features = ["rdrand"] }
 [dependencies.crc]
 version = "1.8.1"
 default-features = false
-
 
 [dependencies.crossbeam-queue]
 version = "0.2.1"
@@ -66,3 +62,8 @@ features = ["alloc", "async-await"]
 [dependencies.conquer-once]
 version = "0.4.0"
 default-features = false
+
+[build-dependencies]
+cc = "1.0"
+nasm-rs = "0.3.0"
+buildid = "=1.0.2"

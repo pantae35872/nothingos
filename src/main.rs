@@ -13,6 +13,8 @@ extern crate multiboot2;
 extern crate nothingos;
 extern crate spin;
 
+use core::fmt::Write;
+
 use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
@@ -24,6 +26,7 @@ use nothingos::filesystem::partition::gpt_partition::GPTPartitions;
 use nothingos::task::executor::{AwaitType, Executor};
 use nothingos::{driver, print, println};
 use spin::Mutex;
+use uart_16550::SerialPort;
 use uguid::guid;
 
 pub fn hlt_loop() -> ! {
@@ -36,6 +39,9 @@ pub fn hlt_loop() -> ! {
 pub fn start(multiboot_information_address: *const BootInformationHeader) -> ! {
     nothingos::init(multiboot_information_address);
     let mut executor = Executor::new();
+    let mut serial_port = unsafe { SerialPort::new(0x3F8) };
+    serial_port.init();
+    serial_port.write_str("Hello world\n").expect("aaa");
     executor.spawn(
         async {
             let mut controller = ahci_driver::DRIVER
@@ -45,6 +51,7 @@ pub fn start(multiboot_information_address: *const BootInformationHeader) -> ! {
             let drive = controller.get_drive(&0).await.expect("Cannot get drive");
             let mut data: [u8; 8196] = [0u8; 8196];
             drive.identify().await;
+            println!("Hello world");
             /*let mut gpt = GPTPartitions::new(drive).await.expect("Error");
             gpt.format().await.expect("format partition error");
             gpt.set_partiton(

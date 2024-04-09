@@ -283,8 +283,8 @@ where
             }
         }
 
-        let vga_buffer_frame = Frame::containing_address(0xb8000);
-        mapper.identity_map(vga_buffer_frame, EntryFlags::WRITABLE, allocator);
+        //let vga_buffer_frame = Frame::containing_address(0xb8000);
+        //mapper.identity_map(vga_buffer_frame, EntryFlags::WRITABLE, allocator);
 
         let video_start = Frame::containing_address(0xA0000);
         let video_end = Frame::containing_address(0xAF000);

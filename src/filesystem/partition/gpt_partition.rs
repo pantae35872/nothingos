@@ -362,7 +362,8 @@ impl<'a, T: Drive> GPTPartitions<'a, T> {
             {
                 println!("Header backup is valid, restoring from backup");
                 self.drive
-                    .write(1, header_bytes, size_of::<PartitionTableHeader>() / 512);
+                    .write(1, header_bytes, size_of::<PartitionTableHeader>() / 512)
+                    .await?;
             } else {
                 return Err(Box::new(OSError::new(
                     "Your header backup is not valid, drive is fully corrupted",
@@ -394,7 +395,8 @@ impl<'a, T: Drive> GPTPartitions<'a, T> {
                 println!("Entries backup is valid, restoring from backup");
                 let start_lba = self.partition_table_header.start_partition_entry_lba;
                 self.drive
-                    .write(start_lba, entries_bytes, self.sector_number_entries);
+                    .write(start_lba, entries_bytes, self.sector_number_entries)
+                    .await?;
             } else {
                 return Err(Box::new(OSError::new(
                     "Your entries backup is not valid, drive is fully corrupted",
