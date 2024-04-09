@@ -9,3 +9,4 @@ disk.disk
 Cargo.lock
 bfg-1.14.0.jar
 Core-current.iso
+OVMF.fd
