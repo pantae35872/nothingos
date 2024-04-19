@@ -3,7 +3,7 @@ use self::mapper::Mapper;
 use self::table::{Level4, Table};
 use self::temporary_page::TemporaryPage;
 use crate::memory::{Frame, FrameAllocator, PAGE_SIZE};
-use crate::{serial_println, BootInformation, EntryFlags};
+use crate::{BootInformation, EntryFlags};
 use core::ops::{Add, Deref, DerefMut};
 use core::ptr::Unique;
 use elf_rs::{ElfFile, SectionHeaderFlags};
