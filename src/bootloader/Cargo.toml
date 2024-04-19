@@ -1,0 +1,14 @@
+[package]
+name = "nothingos"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+elf_rs = "0.3.1"
+uefi = "0.27.0"
+uefi-raw = "0.5.1"
+uefi-services = "0.24.0"
+uart_16550 = "0.2.0"
+x86_64 = "0.15.1"
