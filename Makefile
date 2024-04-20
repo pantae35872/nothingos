@@ -5,8 +5,8 @@ NAME := nothingos
 iso:
 	mkdir -p iso
 
-run: debug
-	qemu-system-x86_64 -cdrom os.iso -m 1G -bios OVMF.fd -drive id=disk,file=disk.disk,if=none,format=qcow2 -device ahci,id=ahci -device ide-hd,drive=disk,bus=ahci.0 -boot d -machine kernel_irqchip=split -serial stdio -S -s -no-reboot #-enable-kvm -cpu host,+rdrand
+run: 
+	qemu-system-x86_64 -cdrom os.iso -m 4G -bios OVMF.fd -drive id=disk,file=disk.disk,if=none,format=qcow2 -device ahci,id=ahci -device ide-hd,drive=disk,bus=ahci.0 -boot d -machine kernel_irqchip=split -serial stdio -S -s -no-reboot -d int #-enable-kvm -cpu host,+rdrand
 
 debug: fat iso
 	cd src/kernel && cargo build

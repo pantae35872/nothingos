@@ -9,6 +9,7 @@ use core::slice;
 use core::str;
 use elf_rs::{Elf, ElfFile, ProgramType};
 use uefi::table::boot::AllocateType;
+use uefi::table::boot::MemoryDescriptor;
 use uefi::table::boot::MemoryMap;
 use uefi::{
     entry,
@@ -67,8 +68,10 @@ fn get_number(data: &[u8]) -> Result<u64, ParseIntError> {
     num_string.trim().parse()
 }
 
+#[repr(C)]
 #[derive(Debug)]
 struct BootInformation<'a> {
+    largest_addr: u64,
     framebuffer: *mut u32,
     runtime_system_table: u64,
     memory_map: *mut MemoryMap<'static>,
@@ -314,6 +317,19 @@ fn main(handle: Handle, mut system_table: SystemTable<Boot>) -> Status {
     unsafe {
         (&mut *boot_info).memory_map = &mut memory_map as *mut MemoryMap<'static>;
         (&mut *boot_info).runtime_system_table = system_table.get_current_system_table_addr();
+        (&mut *boot_info).largest_addr = [
+            &memory_map as *const MemoryMap<'static> as u64 + size_of::<MemoryMap>() as u64 - 1,
+            memory_map.entries().last().unwrap() as *const MemoryDescriptor as u64
+                + size_of::<MemoryDescriptor>() as u64
+                - 1,
+            boot_info as u64 + size_of::<BootInformation>() as u64 - 1,
+            buffer_ptr.add(filesize as usize) as u64 - 1,
+        ]
+        .iter()
+        .max()
+        .unwrap()
+            / 0x40000000
+            + 1;
     }
     unsafe {
         x86_64::registers::model_specific::Efer::write(EferFlags::LONG_MODE_ENABLE);

@@ -4,8 +4,10 @@ extern start
 section .text
 bits 64
 boot_start:
+  mov rsp, stack_top
   call set_up_page_tables
   call enable_paging
+
   mov ax, 0
   mov ss, ax
   mov ds, ax
@@ -27,24 +29,57 @@ set_up_page_tables:
   mov [p4_table], eax
 
   ; map first P3 entry to P2 table
+  mov rcx, 0
+
+.map_p3_table
+  mov rsi, 4096
+  imul rsi, rcx
   mov eax, p2_table
+  add rax, rsi
   or eax, 0b11 ; present + writable
-  mov [p3_table], eax
+  mov [p3_table + rcx * 8], eax
+  inc rcx
+  mov rdx, [rdi]
+  cmp rcx, rdx
+  jne .map_p3_table
 
-  ; map each P2 entry to a huge 2MiB page
-  mov ecx, 0         ; counter variable
 
-.map_p2_table:
+; map each P2 entry to a huge 2MiB page
+  mov rbx, 0
+  mov rdx, p2_table
+.map_p2_1g
+  mov rcx, 0         ; counter variable
+
+  .map_p2_table:
     ; map ecx-th P2 entry to a huge page that starts at address 2MiB*ecx
-  mov eax, 0x200000  ; 2MiB
-  mul ecx            ; start address of ecx-th page
-  or eax, 0b10000011 ; present + writable + huge
-  mov [p2_table + ecx * 8], eax ; map ecx-th entry
+    mov eax, 0x200000  ; 2MiB
+    mov rsi, rdx
+    mul rcx ; start address of ecx-th page
+    push rsi
+    push rax
+    mov rax, 0x40000000
+    mul rbx
+    mov rsi, rax 
+    pop rax
+    add rax, rsi
+    or eax, 0b10000011 ; present + writable + huge
+    pop rsi
+    mov [rsi + rcx * 8], eax ; map ecx-th entry
+    mov rdx, rsi
 
-  inc ecx            ; increase counter
-  cmp ecx, 512       ; if counter == 512, the whole P2 table is mapped
-  jne .map_p2_table  ; else map the next entry
+    inc rcx            ; increase counter
+    cmp rcx, 512       ; if counter == 512, the whole P2 table is mapped
+    jne .map_p2_table  ; else map the next entry
 
+  inc rbx
+  mov rsi, 4096
+  imul rsi, rbx
+  mov rax, p2_table
+  add rax, rsi
+  mov rdx, rax
+  mov rax, [rdi]
+  cmp rbx, rax
+  jne .map_p2_1g
   ret
 
 enable_paging:
@@ -71,4 +106,7 @@ p4_table:
 p3_table:
   resb 4096
 p2_table:
-  resb 4096
+  resb 4096 * 8
+stack_bottom:
+  resb 4096 * 32
+stack_top:

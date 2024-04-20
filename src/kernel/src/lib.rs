@@ -172,8 +172,10 @@ pub fn get_physical_with_controller(
     };
 }
 
+#[repr(C)]
 #[derive(Debug)]
 pub struct BootInformation<'a> {
+    pub largest_addr: u64,
     pub framebuffer: *mut u32,
     pub runtime_system_table: u64,
     pub memory_map: *mut MemoryMap<'static>,
