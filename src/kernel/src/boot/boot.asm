@@ -88,9 +88,9 @@ enable_paging:
   mov cr3, rax
 
   ; enable PAE-flag in cr4 (Physical Address Extension)
-  mov rax, cr4
-  or rax, 1 << 5
-  mov cr4, rax
+  ;mov rax, cr4
+  ;or rax, 1 << 5
+  ;mov cr4, rax
 
   ; enable paging in the cr0 register
   ;mov rax, cr0
@@ -106,7 +106,7 @@ p4_table:
 p3_table:
   resb 4096
 p2_table:
-  resb 4096 * 8
+  resb 4096 * 32
 stack_bottom:
   resb 4096 * 32
 stack_top:

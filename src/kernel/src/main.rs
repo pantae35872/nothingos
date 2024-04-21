@@ -12,13 +12,9 @@ extern crate lazy_static;
 extern crate nothingos;
 extern crate spin;
 
-use core::fmt::Write;
-
-use nothingos::driver::storage::{ahci_driver, Drive};
-use nothingos::filesystem::partition::gpt_partition::GPTPartitions;
 use nothingos::task::executor::{AwaitType, Executor};
-use nothingos::{driver, println, serial_println, BootInformation};
-use uart_16550::SerialPort;
+use nothingos::{driver, serial_println, BootInformation};
+use uefi::proto::console::gop::PixelFormat;
 
 pub fn hlt_loop() -> ! {
     loop {
@@ -28,23 +24,13 @@ pub fn hlt_loop() -> ! {
 
 #[no_mangle]
 pub extern "C" fn start(information_address: *mut BootInformation) -> ! {
+    let boot_info = unsafe { &mut *information_address };
     nothingos::init(information_address);
     serial_println!("Hello world");
-    /*let boot_info = unsafe { &mut *information_address };
-    for y in 0..1080 {
-        for x in 0..1920 {
-            unsafe {
-                (*boot_info.framebuffer.wrapping_add(y * 1920 + x)) = 0xFFFFFFFF;
-            }
-        }
-    }*/
     let mut executor = Executor::new();
-    let mut serial_port = unsafe { SerialPort::new(0x3F8) };
-    serial_port.init();
-    serial_port.write_str("Hello world\n").expect("aaa");
     executor.spawn(
         async {
-            let mut controller = ahci_driver::DRIVER
+            /*let mut controller = ahci_driver::DRIVER
                 .get()
                 .expect("AHCI Driver is not initialize")
                 .lock();
@@ -56,7 +42,33 @@ pub extern "C" fn start(information_address: *mut BootInformation) -> ! {
             let mut gpt = GPTPartitions::new(drive).await.expect("Error");
             let partition1 = gpt.read_partition(2).await.expect("");
 
-            println!("{}", partition1.get_partition_name());
+            println!("{}", partition1.get_partition_name());*/
+        },
+        AwaitType::AlwaysPoll,
+    );
+    executor.spawn(
+        async {
+            if boot_info.gop_mode.info().pixel_format() == PixelFormat::Rgb {
+                serial_println!("This is rgb");
+                let (width, height) = boot_info.gop_mode.info().resolution();
+                for y in 0..height {
+                    for x in 0..width {
+                        unsafe {
+                            (*boot_info.framebuffer.wrapping_add(y * width + x)) = 0x00FFFFFF;
+                        }
+                    }
+                }
+            } else if boot_info.gop_mode.info().pixel_format() == PixelFormat::Bgr {
+                serial_println!("This is bgr");
+                let (width, height) = boot_info.gop_mode.info().resolution();
+                for y in 0..height {
+                    for x in 0..width {
+                        unsafe {
+                            (*boot_info.framebuffer.wrapping_add(y * width + x)) = 0x0000FFFF;
+                        }
+                    }
+                }
+            }
         },
         AwaitType::AlwaysPoll,
     );

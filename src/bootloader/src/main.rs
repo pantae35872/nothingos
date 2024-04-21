@@ -8,9 +8,12 @@ use core::ptr::write_bytes;
 use core::slice;
 use core::str;
 use elf_rs::{Elf, ElfFile, ProgramType};
+use uefi::proto::console::gop::Mode;
 use uefi::table::boot::AllocateType;
 use uefi::table::boot::MemoryDescriptor;
 use uefi::table::boot::MemoryMap;
+use uefi::table::boot::OpenProtocolAttributes;
+use uefi::table::boot::OpenProtocolParams;
 use uefi::{
     entry,
     proto::{
@@ -29,7 +32,6 @@ use uefi::{
 };
 use uefi_raw::protocol::file_system::FileAttribute;
 use uefi_services::println;
-use x86_64::registers::control::EferFlags;
 
 fn bytes_to_str(bytes: &[u8]) -> &str {
     unsafe { str::from_utf8_unchecked(bytes) }
@@ -72,6 +74,7 @@ fn get_number(data: &[u8]) -> Result<u64, ParseIntError> {
 #[derive(Debug)]
 struct BootInformation<'a> {
     largest_addr: u64,
+    gop_mode: Mode,
     framebuffer: *mut u32,
     runtime_system_table: u64,
     memory_map: *mut MemoryMap<'static>,
@@ -281,7 +284,7 @@ fn main(handle: Handle, mut system_table: SystemTable<Boot>) -> Status {
 
     drop(protocol);
     drop(scoped_simple_file_system);
-    println!("Press any key to boot...");
+    println!("Press any key to boot.....");
 
     loop {
         match system_table.stdin().read_key() {
@@ -298,9 +301,18 @@ fn main(handle: Handle, mut system_table: SystemTable<Boot>) -> Status {
     let handle = system_table
         .boot_services()
         .get_handle_for_protocol::<GraphicsOutput>();
-    let gop = system_table
-        .boot_services()
-        .open_protocol_exclusive::<GraphicsOutput>(handle.unwrap());
+    let gop = unsafe {
+        system_table
+            .boot_services()
+            .open_protocol::<GraphicsOutput>(
+                OpenProtocolParams {
+                    handle: handle.unwrap(),
+                    agent: system_table.boot_services().image_handle(),
+                    controller: None,
+                },
+                OpenProtocolAttributes::GetProtocol,
+            )
+    };
     let mut gop = gop.unwrap();
     let framebuffer = gop.frame_buffer().as_mut_ptr() as usize;
     unsafe {
@@ -309,6 +321,9 @@ fn main(handle: Handle, mut system_table: SystemTable<Boot>) -> Status {
     for mode in gop.modes(system_table.boot_services()) {
         if mode.info().resolution() == (1920, 1080) {
             gop.set_mode(&mode).expect("Could not set mode");
+            unsafe {
+                (&mut *boot_info).gop_mode = mode;
+            }
             break;
         }
     }
@@ -331,10 +346,6 @@ fn main(handle: Handle, mut system_table: SystemTable<Boot>) -> Status {
             / 0x40000000
             + 1;
     }
-    unsafe {
-        x86_64::registers::model_specific::Efer::write(EferFlags::LONG_MODE_ENABLE);
-    }
-
     unsafe {
         asm!(
             r#"

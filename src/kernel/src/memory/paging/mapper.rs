@@ -82,7 +82,6 @@ impl Mapper {
         assert!(p1[page.p1_index()].is_unused());
         p1[page.p1_index()].set(frame, flags | EntryFlags::PRESENT);
     }
-
     pub fn map<A>(&mut self, page: Page, flags: EntryFlags, allocator: &mut A)
     where
         A: FrameAllocator,

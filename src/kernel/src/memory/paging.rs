@@ -3,10 +3,11 @@ use self::mapper::Mapper;
 use self::table::{Level4, Table};
 use self::temporary_page::TemporaryPage;
 use crate::memory::{Frame, FrameAllocator, PAGE_SIZE};
-use crate::{BootInformation, EntryFlags};
+use crate::{inline_if, BootInformation, EntryFlags};
 use core::ops::{Add, Deref, DerefMut};
 use core::ptr::Unique;
 use elf_rs::{ElfFile, SectionHeaderFlags};
+use uefi::proto::console::gop::PixelFormat;
 use uefi::table::boot::MemoryDescriptor;
 use x86_64::registers::control::{self, Cr3, Cr3Flags};
 use x86_64::structures::paging::PhysFrame;
@@ -269,7 +270,6 @@ where
         InactivePageTable::new(frame, &mut active_table, &mut temporary_page)
     };
     let memory_map = unsafe { &*boot_info.memory_map };
-
     active_table.with(&mut new_table, &mut temporary_page, |mapper| {
         for section in boot_info.elf_section.section_header_iter() {
             if !section.flags().contains(SectionHeaderFlags::SHF_ALLOC) {
@@ -289,17 +289,6 @@ where
                 mapper.identity_map(frame, flags, allocator);
             }
         }
-
-        let stack_start = Frame::containing_address(boot_info.stack_bottom as usize);
-        let stack_end = Frame::containing_address(boot_info.stack_top as usize);
-
-        for frame in Frame::range_inclusive(stack_start, stack_end) {
-            mapper.identity_map(
-                frame,
-                EntryFlags::WRITABLE | EntryFlags::NO_CACHE,
-                allocator,
-            )
-        }
         let bootinfo_start = Frame::containing_address(boot_info.boot_info_start as usize);
         let bootinfo_end = Frame::containing_address(boot_info.boot_info_end as usize);
 
@@ -313,19 +302,44 @@ where
             allocator,
         );
 
-        let memory_map_start = Frame::containing_address(memory_map.get(0).unwrap()
+        let memory_map_start = Frame::containing_address(memory_map.entries().next().unwrap()
             as *const MemoryDescriptor
             as usize);
         let memory_map_end = Frame::containing_address(memory_map.entries().last().unwrap()
             as *const MemoryDescriptor
             as usize);
-
+        let bootinfo_start = Frame::containing_address(boot_info.boot_info_start as usize);
+        let bootinfo_end = Frame::containing_address(boot_info.boot_info_end as usize);
         for frame in Frame::range_inclusive(memory_map_start, memory_map_end) {
+            if frame >= bootinfo_start && frame <= bootinfo_end {
+                continue;
+            }
             mapper.identity_map(
                 frame,
                 EntryFlags::PRESENT | EntryFlags::WRITABLE | EntryFlags::NO_CACHE,
                 allocator,
-            )
+            );
+        }
+
+        let (width, height) = boot_info.gop_mode.info().resolution();
+        let frame_buffer_start = Frame::containing_address(boot_info.framebuffer as usize);
+        let frame_buffer_end = Frame::containing_address(
+            boot_info.framebuffer as usize
+                + inline_if!(
+                    boot_info.gop_mode.info().pixel_format() == PixelFormat::Rgb
+                        || boot_info.gop_mode.info().pixel_format() == PixelFormat::Bgr,
+                    4,
+                    0
+                ) * width
+                    * height,
+        );
+
+        for frame in Frame::range_inclusive(frame_buffer_start, frame_buffer_end) {
+            mapper.identity_map(
+                frame,
+                EntryFlags::WRITABLE | EntryFlags::NO_CACHE | EntryFlags::PRESENT,
+                allocator,
+            );
         }
 
         //let vga_buffer_frame = Frame::containing_address(0xb8000);

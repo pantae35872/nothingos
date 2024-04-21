@@ -611,7 +611,9 @@ impl AhciController {
             for slot in 0..32 {
                 vendor = pci.read(&bus, &slot, &0, &0x00);
                 device = pci.read(&bus, &slot, &0, &0x02);
-                if vendor == 0x29228086 && device == 0x2922 {
+                if (vendor == 0x29228086 && device == 0x2922)
+                    || (vendor == 0x28298086 && device == 0x2829)
+                {
                     return Some(pci.read(&bus, &slot, &0, &0x24).into());
                 }
             }
@@ -641,11 +643,10 @@ pub fn init(memory_controller: &mut MemoryController) {
                 &mut memory_controller.frame_allocator,
             );
         }
+        DRIVER.init_once(|| {
+            let mut controller = AhciController::new();
+            controller.probe_port(memory_controller);
+            Mutex::from(controller)
+        });
     }
-
-    DRIVER.init_once(|| {
-        let mut controller = AhciController::new();
-        controller.probe_port(memory_controller);
-        Mutex::from(controller)
-    });
 }

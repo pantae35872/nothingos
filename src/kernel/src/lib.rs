@@ -82,6 +82,7 @@ use memory::paging::{ActivePageTable, Page};
 use memory::stack_allocator::{Stack, StackAllocator};
 use memory::AreaFrameAllocator;
 use spin::Mutex;
+use uefi::proto::console::gop::Mode;
 use uefi::table::boot::MemoryMap;
 use x2apic::lapic::xapic_base;
 use x86_64::registers::control::Cr0Flags;
@@ -176,6 +177,7 @@ pub fn get_physical_with_controller(
 #[derive(Debug)]
 pub struct BootInformation<'a> {
     pub largest_addr: u64,
+    pub gop_mode: Mode,
     pub framebuffer: *mut u32,
     pub runtime_system_table: u64,
     pub memory_map: *mut MemoryMap<'static>,
@@ -238,28 +240,6 @@ pub fn init(information_address: *mut BootInformation) {
     gdt::init_gdt(&mut memory_controller);
     interrupt::init(&mut memory_controller);
     x86_64::instructions::interrupts::enable();
-    // new
-    /*let mut buffer_addr = None;
-    if let Some(framebuffer) = boot_info.framebuffer_tag() {
-        if let Ok(buffer) = framebuffer {
-            if let Ok(buffer_type) = buffer.buffer_type() {
-                if buffer_type == FramebufferType::Text {
-                    let vga_buffer_frame = Frame::containing_address(buffer.address() as usize);
-                    ACTIVE_TABLE.get().unwrap().lock().identity_map(
-                        vga_buffer_frame,
-                        EntryFlags::WRITABLE,
-                        &mut frame_allocator,
-                    );
-                    buffer_addr = Some(buffer.address());
-                }
-            }
-        }
-    }
-    if let Some(buffer) = buffer_addr {
-        print::init(buffer, 0xb, 0);
-    } else {
-        print::init(0xb8000, 0xb, 0);
-    }*/
     print::init(0xb8000, 0xb, 0);
     allocator::init(&mut memory_controller);
     driver::init(&mut memory_controller);
