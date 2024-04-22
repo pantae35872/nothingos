@@ -13,9 +13,8 @@ debug: fat iso
 	cd src/bootloader && cargo build --target x86_64-unknown-uefi && cp target/x86_64-unknown-uefi/debug/$(NAME).efi target/x86_64-unknown-uefi/debug/bootx64.efi
 	mcopy -i fat.img src/bootloader/target/x86_64-unknown-uefi/debug/bootx64.efi ::/efi/boot
 	cp src/kernel/target/x86_64/debug/${NAME} kernel.bin
-	stat -c %s kernel.bin > filesize.inf
 	mcopy -i fat.img kernel.bin ::/boot 
-	mcopy -i fat.img filesize.inf ::/boot
+	mcopy -i fat.img bootinfo.toml ::/boot
 	cp fat.img iso
 	xorriso -as mkisofs -R -f -e fat.img -no-emul-boot -o os.iso iso
 
@@ -24,9 +23,8 @@ release: fat iso
 	cd src/bootloader && cargo build --release --target x86_64-unknown-uefi && cp target/x86_64-unknown-uefi/release/$(NAME).efi target/x86_64-unknown-uefi/release/bootx64.efi
 	mcopy -i fat.img src/bootloader/target/x86_64-unknown-uefi/release/bootx64.efi ::/efi/boot
 	cp src/kernel/target/x86_64/release/${NAME} kernel.bin
-	stat -c %s kernel.bin > filesize.inf
 	mcopy -i fat.img kernel.bin ::/boot 
-	mcopy -i fat.img filesize.inf ::/boot
+	mcopy -i fat.img bootinfo.toml ::/boot
 	cp fat.img iso
 	xorriso -as mkisofs -R -f -e fat.img -no-emul-boot -o os.iso iso
 

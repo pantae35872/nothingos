@@ -26,7 +26,6 @@ pic8259 = "0.10.1"
 pc-keyboard = "0.5.0"
 uart_16550 = "0.2.0"
 bitflags = "2.4.1"
-linked_list_allocator = "0.9.0"
 uguid = "2.2.0"
 getrandom = { version = "0.2.11", features = ["rdrand"] }
 x2apic = "0.4.3"

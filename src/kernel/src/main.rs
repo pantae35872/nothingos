@@ -26,7 +26,6 @@ pub fn hlt_loop() -> ! {
 pub extern "C" fn start(information_address: *mut BootInformation) -> ! {
     let boot_info = unsafe { &mut *information_address };
     nothingos::init(information_address);
-    serial_println!("Hello world");
     let mut executor = Executor::new();
     executor.spawn(
         async {

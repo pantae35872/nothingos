@@ -175,7 +175,7 @@ pub fn get_physical_with_controller(
 
 #[repr(C)]
 #[derive(Debug)]
-pub struct BootInformation<'a> {
+pub struct BootInformation {
     pub largest_addr: u64,
     pub gop_mode: Mode,
     pub framebuffer: *mut u32,
@@ -183,9 +183,7 @@ pub struct BootInformation<'a> {
     pub memory_map: *mut MemoryMap<'static>,
     pub kernel_start: u64,
     pub kernel_end: u64,
-    pub elf_section: Elf<'a>,
-    pub stack_top: u64,
-    pub stack_bottom: u64,
+    pub elf_section: Elf<'static>,
     pub boot_info_start: u64,
     pub boot_info_end: u64,
 }

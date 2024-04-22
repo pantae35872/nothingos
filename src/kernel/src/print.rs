@@ -1,12 +1,13 @@
 use core::fmt::{Arguments, Write};
 use core::{char, fmt, u8};
 
+use crate::serial::SERIAL1;
 use conquer_once::spin::OnceCell;
 use spin::Mutex;
 use x86_64::instructions::interrupts;
 use x86_64::PhysAddr;
 
-use crate::serial::SERIAL1;
+pub mod ttf_parser;
 
 pub static DRIVER: OnceCell<Mutex<Print>> = OnceCell::uninit();
 

@@ -1,6 +1,10 @@
 #![no_main]
 #![no_std]
-
+#![feature(str_from_raw_parts)]
+#![feature(allocator_api)]
+extern crate alloc;
+use alloc::borrow::ToOwned;
+use alloc::vec::Vec;
 use core::arch::asm;
 use core::mem::size_of;
 use core::num::ParseIntError;
@@ -9,6 +13,8 @@ use core::slice;
 use core::str;
 use elf_rs::{Elf, ElfFile, ProgramType};
 use uefi::proto::console::gop::Mode;
+use uefi::proto::media::file::FileInfo;
+use uefi::proto::media::file::RegularFile;
 use uefi::table::boot::AllocateType;
 use uefi::table::boot::MemoryDescriptor;
 use uefi::table::boot::MemoryMap;
@@ -32,6 +38,8 @@ use uefi::{
 };
 use uefi_raw::protocol::file_system::FileAttribute;
 use uefi_services::println;
+
+use crate::toml::TomlValue;
 
 fn bytes_to_str(bytes: &[u8]) -> &str {
     unsafe { str::from_utf8_unchecked(bytes) }
@@ -70,9 +78,11 @@ fn get_number(data: &[u8]) -> Result<u64, ParseIntError> {
     num_string.trim().parse()
 }
 
+pub mod toml;
+
 #[repr(C)]
 #[derive(Debug)]
-struct BootInformation<'a> {
+struct BootInformation {
     largest_addr: u64,
     gop_mode: Mode,
     framebuffer: *mut u32,
@@ -80,14 +90,10 @@ struct BootInformation<'a> {
     memory_map: *mut MemoryMap<'static>,
     kernel_start: u64,
     kernel_end: u64,
-    elf_section: Elf<'a>,
-    stack_top: u64,
-    stack_bottom: u64,
+    elf_section: Elf<'static>,
     boot_info_start: u64,
     boot_info_end: u64,
 }
-
-const STACK_SIZE: u64 = 4096 * 32;
 
 #[entry]
 fn main(handle: Handle, mut system_table: SystemTable<Boot>) -> Status {
@@ -140,12 +146,12 @@ fn main(handle: Handle, mut system_table: SystemTable<Boot>) -> Status {
     };
 
     let mut buf = [0; 32];
-    let filename = match CStr16::from_str_with_buf("\\boot\\filesize.inf", &mut buf) {
+    let filename = match CStr16::from_str_with_buf("\\boot\\bootinfo.toml", &mut buf) {
         Ok(filename) => filename,
         Err(error) => panic!("could not create a file name for kernel info {}", error),
     };
 
-    let mut info_file =
+    let mut info_file: RegularFile =
         match root_directory.open(&filename, FileMode::Read, FileAttribute::READ_ONLY) {
             Ok(file) => match file.into_regular_file() {
                 Some(file) => file,
@@ -154,23 +160,57 @@ fn main(handle: Handle, mut system_table: SystemTable<Boot>) -> Status {
             Err(error) => panic!("Could not open info file for the kernel {}", error),
         };
 
-    let mut buffer = [0u8; 64];
-    info_file
-        .read(&mut buffer)
-        .expect("Failed to read kernel info");
+    let mut buffer = [0u8; 512];
+    let info: &mut FileInfo = match info_file.get_info(&mut buffer) {
+        Ok(value) => value,
+        Err(panic) => panic!("Could not get info for a kernel info file: {}", panic),
+    };
 
-    let filesize = match get_number(&buffer) {
-        Ok(filesize) => filesize,
-        Err(error) => panic!(
-            "Could not get a kernel file size from a info data {}",
-            error
-        ),
+    let info_buffer: &mut [u8] = unsafe {
+        core::slice::from_raw_parts_mut(
+            system_table
+                .boot_services()
+                .allocate_pool(MemoryType::LOADER_DATA, info.file_size() as usize)
+                .unwrap(),
+            info.file_size() as usize,
+        )
     };
-    let mut buf = [0; 32];
-    let filename = match CStr16::from_str_with_buf("\\boot\\kernel.bin", &mut buf) {
-        Ok(filename) => filename,
-        Err(error) => panic!("Could not create file name for a kernel {}", error),
-    };
+
+    info_file
+        .read(info_buffer)
+        .expect("Could not get file for kernel info");
+
+    let info_file =
+        unsafe { core::str::from_raw_parts(info_buffer.as_ptr(), info.file_size() as usize) };
+
+    let info_file: Vec<(&str, TomlValue)> = toml::parse_toml(info_file).unwrap();
+
+    let mut kernel_file: &str = "";
+    let mut kernel_font_file: &str = "";
+    for (key, value) in info_file {
+        if key == "kernel_file" {
+            match value {
+                TomlValue::String(s) => {
+                    kernel_file = s;
+                }
+                TomlValue::Integer(i) => panic!("Kernel file is not a string"),
+            }
+        } else if key == "font_file" {
+            match value {
+                TomlValue::String(s) => {
+                    kernel_font_file = s;
+                }
+                TomlValue::Integer(i) => panic!("Kernel font file is not a string"),
+            }
+        }
+    }
+
+    let mut buf = [0; 64];
+    let filename =
+        match CStr16::from_str_with_buf(("\\boot\\".to_owned() + kernel_file).as_str(), &mut buf) {
+            Ok(filename) => filename,
+            Err(error) => panic!("Could not create file name for a kernel {}", error),
+        };
 
     let mut kernel_file =
         match root_directory.open(&filename, FileMode::Read, FileAttribute::READ_ONLY) {
@@ -180,6 +220,11 @@ fn main(handle: Handle, mut system_table: SystemTable<Boot>) -> Status {
             },
             Err(error) => panic!("Could not open kernel file {}", error),
         };
+    let mut kernel_info_aaaaaaaaaa = [0u8; 256];
+    let filesize = kernel_file
+        .get_info::<FileInfo>(&mut kernel_info_aaaaaaaaaa)
+        .unwrap()
+        .file_size();
 
     let buffer_ptr = match system_table
         .boot_services()
@@ -225,16 +270,6 @@ fn main(handle: Handle, mut system_table: SystemTable<Boot>) -> Status {
         (1 + (total_bytes >> 12)) as usize
     };
 
-    let stack_ptr = match system_table
-        .boot_services()
-        .allocate_pool(MemoryType::LOADER_DATA, STACK_SIZE as usize)
-    {
-        Ok(ptr) => ptr,
-        Err(err) => {
-            panic!("Failed to allocate memory for the kernel stack {:?}", err);
-        }
-    };
-
     let program_ptr = match system_table.boot_services().allocate_pages(
         AllocateType::Address(mem_min),
         MemoryType::LOADER_DATA,
@@ -276,8 +311,6 @@ fn main(handle: Handle, mut system_table: SystemTable<Boot>) -> Status {
         (&mut *boot_info).kernel_start = mem_min;
         (&mut *boot_info).kernel_end = mem_max;
         (&mut *boot_info).elf_section = elf;
-        (&mut *boot_info).stack_top = stack_ptr as u64 + STACK_SIZE;
-        (&mut *boot_info).stack_bottom = stack_ptr as u64;
         (&mut *boot_info).boot_info_start = boot_info as u64;
         (&mut *boot_info).boot_info_end = boot_info as u64 + size_of::<BootInformation>() as u64;
     }
@@ -350,10 +383,8 @@ fn main(handle: Handle, mut system_table: SystemTable<Boot>) -> Status {
         asm!(
             r#"
             xor rbp, rbp
-            mov rsp, {}
             jmp {}
         "#,
-        in(reg) stack_ptr.add(STACK_SIZE as usize),
         in(reg) entrypoint,
         in("rdi") boot_info
         );
