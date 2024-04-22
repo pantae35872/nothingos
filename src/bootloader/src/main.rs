@@ -7,7 +7,6 @@ use alloc::borrow::ToOwned;
 use alloc::vec::Vec;
 use core::arch::asm;
 use core::mem::size_of;
-use core::num::ParseIntError;
 use core::ptr::write_bytes;
 use core::slice;
 use core::str;
@@ -41,10 +40,6 @@ use uefi_services::println;
 
 use crate::toml::TomlValue;
 
-fn bytes_to_str(bytes: &[u8]) -> &str {
-    unsafe { str::from_utf8_unchecked(bytes) }
-}
-
 fn set_output_mode(system_table: &mut SystemTable<Boot>) {
     let mut largest_mode: Option<OutputMode> = None;
     let mut largest_size = 0;
@@ -64,20 +59,6 @@ fn set_output_mode(system_table: &mut SystemTable<Boot>) {
     }
 }
 
-fn get_number(data: &[u8]) -> Result<u64, ParseIntError> {
-    let mut index = 0;
-    for (i, &byte) in data.iter().enumerate() {
-        if byte == b'\n' {
-            index = i;
-            break;
-        }
-    }
-
-    let num_string = bytes_to_str(&data[..index]);
-
-    num_string.trim().parse()
-}
-
 pub mod toml;
 
 #[repr(C)]
@@ -93,6 +74,8 @@ struct BootInformation {
     elf_section: Elf<'static>,
     boot_info_start: u64,
     boot_info_end: u64,
+    font_start: u64,
+    font_end: u64,
 }
 
 #[entry]
@@ -193,17 +176,53 @@ fn main(handle: Handle, mut system_table: SystemTable<Boot>) -> Status {
                 TomlValue::String(s) => {
                     kernel_file = s;
                 }
-                TomlValue::Integer(i) => panic!("Kernel file is not a string"),
+                TomlValue::Integer(_) => panic!("Kernel file is not a string"),
             }
         } else if key == "font_file" {
             match value {
                 TomlValue::String(s) => {
                     kernel_font_file = s;
                 }
-                TomlValue::Integer(i) => panic!("Kernel font file is not a string"),
+                TomlValue::Integer(_) => panic!("Kernel font file is not a string"),
             }
         }
     }
+    let mut buf = [0; 64];
+    let filename = match CStr16::from_str_with_buf(
+        ("\\boot\\".to_owned() + kernel_font_file).as_str(),
+        &mut buf,
+    ) {
+        Ok(filename) => filename,
+        Err(error) => panic!("Could not create file name for a kernel {}", error),
+    };
+
+    let mut kernel_font_file =
+        match root_directory.open(&filename, FileMode::Read, FileAttribute::READ_ONLY) {
+            Ok(file) => match file.into_regular_file() {
+                Some(file) => file,
+                None => panic!("A kernel file is not a file"),
+            },
+            Err(error) => panic!("Could not open kernel file {}", error),
+        };
+    let mut kernel_font_info_aaaaaaaaaa = [0u8; 256];
+    let kernel_font_filesize = kernel_font_file
+        .get_info::<FileInfo>(&mut kernel_font_info_aaaaaaaaaa)
+        .unwrap()
+        .file_size();
+
+    let font_buffer_ptr = match system_table
+        .boot_services()
+        .allocate_pool(MemoryType::LOADER_DATA, kernel_font_filesize as usize)
+    {
+        Ok(ptr) => ptr,
+        Err(error) => panic!("Could not allocate buffer for an kernel {}", error),
+    };
+    let font_buffer: &mut [u8] =
+        unsafe { slice::from_raw_parts_mut(font_buffer_ptr, kernel_font_filesize as usize) };
+
+    kernel_font_file
+        .read(font_buffer)
+        .expect("Failed to load kernel font file");
 
     let mut buf = [0; 64];
     let filename =
@@ -313,6 +332,8 @@ fn main(handle: Handle, mut system_table: SystemTable<Boot>) -> Status {
         (&mut *boot_info).elf_section = elf;
         (&mut *boot_info).boot_info_start = boot_info as u64;
         (&mut *boot_info).boot_info_end = boot_info as u64 + size_of::<BootInformation>() as u64;
+        (&mut *boot_info).font_start = font_buffer_ptr as u64;
+        (&mut *boot_info).font_end = font_buffer_ptr as u64 + kernel_font_filesize - 1;
     }
 
     drop(protocol);

@@ -342,6 +342,17 @@ where
             );
         }
 
+        let font_start = Frame::containing_address(boot_info.font_start as usize);
+        let font_end = Frame::containing_address(boot_info.font_end as usize);
+
+        for frame in Frame::range_inclusive(font_start, font_end) {
+            mapper.identity_map(
+                frame,
+                EntryFlags::WRITABLE | EntryFlags::NO_CACHE | EntryFlags::PRESENT,
+                allocator,
+            );
+        }
+
         //let vga_buffer_frame = Frame::containing_address(0xb8000);
         //mapper.identity_map(vga_buffer_frame, EntryFlags::WRITABLE, allocator);
 

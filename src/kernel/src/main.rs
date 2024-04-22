@@ -12,8 +12,9 @@ extern crate lazy_static;
 extern crate nothingos;
 extern crate spin;
 
+use nothingos::print::ttf_parser::TtfParser;
 use nothingos::task::executor::{AwaitType, Executor};
-use nothingos::{driver, serial_println, BootInformation};
+use nothingos::{driver, serial_print, serial_println, BootInformation};
 use uefi::proto::console::gop::PixelFormat;
 
 pub fn hlt_loop() -> ! {
@@ -68,6 +69,14 @@ pub extern "C" fn start(information_address: *mut BootInformation) -> ! {
                     }
                 }
             }
+            let font = unsafe {
+                core::slice::from_raw_parts_mut(
+                    boot_info.font_start as *mut u8,
+                    (boot_info.font_end - boot_info.font_start) as usize,
+                )
+            };
+            let mut font_parser = TtfParser::new(font);
+            font_parser.test();
         },
         AwaitType::AlwaysPoll,
     );

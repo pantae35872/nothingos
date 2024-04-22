@@ -6,7 +6,7 @@ iso:
 	mkdir -p iso
 
 run: 
-	qemu-system-x86_64 -cdrom os.iso -m 1G -bios OVMF.fd -drive id=disk,file=disk.disk,if=none,format=qcow2 -device ahci,id=ahci -device ide-hd,drive=disk,bus=ahci.0 -boot d -machine kernel_irqchip=split -serial stdio -no-reboot -enable-kvm -cpu host,+rdrand
+	qemu-system-x86_64 -cdrom os.iso -m 1G -bios OVMF.fd -drive id=disk,file=disk.disk,if=none,format=qcow2 -device ahci,id=ahci -device ide-hd,drive=disk,bus=ahci.0 -boot d -machine kernel_irqchip=split -serial stdio -no-reboot -S -s #-enable-kvm -cpu host,+rdrand
 
 debug: fat iso
 	cd src/kernel && cargo build
@@ -15,6 +15,7 @@ debug: fat iso
 	cp src/kernel/target/x86_64/debug/${NAME} kernel.bin
 	mcopy -i fat.img kernel.bin ::/boot 
 	mcopy -i fat.img bootinfo.toml ::/boot
+	mcopy -i fat.img kernel-font.ttf ::/boot
 	cp fat.img iso
 	xorriso -as mkisofs -R -f -e fat.img -no-emul-boot -o os.iso iso
 
@@ -25,6 +26,7 @@ release: fat iso
 	cp src/kernel/target/x86_64/release/${NAME} kernel.bin
 	mcopy -i fat.img kernel.bin ::/boot 
 	mcopy -i fat.img bootinfo.toml ::/boot
+	mcopy -i fat.img kernel-font.ttf ::/boot
 	cp fat.img iso
 	xorriso -as mkisofs -R -f -e fat.img -no-emul-boot -o os.iso iso
 

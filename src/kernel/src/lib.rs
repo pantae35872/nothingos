@@ -1,5 +1,4 @@
 #![no_std]
-#![feature(pointer_is_aligned)]
 #![cfg_attr(test, no_main)]
 #![feature(custom_test_frameworks)]
 #![test_runner(crate::test_runner)]
@@ -186,6 +185,8 @@ pub struct BootInformation {
     pub elf_section: Elf<'static>,
     pub boot_info_start: u64,
     pub boot_info_end: u64,
+    pub font_start: u64,
+    pub font_end: u64,
 }
 pub struct MemoryController<'area_frame_allocator, 'active_table> {
     active_table: &'active_table mut ActivePageTable,
