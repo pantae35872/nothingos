@@ -12,8 +12,13 @@ extern crate lazy_static;
 extern crate nothingos;
 extern crate spin;
 
+use core::f64::consts::PI;
+
+use alloc::vec::Vec;
+use nothingos::graphics::{draw_line, draw_triangle};
 use nothingos::print::ttf_parser::TtfParser;
 use nothingos::task::executor::{AwaitType, Executor};
+use nothingos::utils::math::{Coordinate, Polygon};
 use nothingos::{driver, serial_print, serial_println, BootInformation};
 use uefi::proto::console::gop::PixelFormat;
 
@@ -61,14 +66,22 @@ pub extern "C" fn start(information_address: *mut BootInformation) -> ! {
             } else if boot_info.gop_mode.info().pixel_format() == PixelFormat::Bgr {
                 serial_println!("This is bgr");
                 let (width, height) = boot_info.gop_mode.info().resolution();
-                for y in 0..height {
-                    for x in 0..width {
+                /*let triangle = draw_triangle(
+                    &Coordinate::new(100, 100),
+                    &Coordinate::new(200, 200),
+                    &Coordinate::new(200, 100),
+                );
+                for line in triangle {
+                    for point in line {
                         unsafe {
-                            (*boot_info.framebuffer.wrapping_add(y * width + x)) = 0x0000FFFF;
+                            (*boot_info.framebuffer.wrapping_add(
+                                point.get_x() as usize * width + point.get_y() as usize,
+                            )) = 0x0000FFFF;
                         }
                     }
-                }
+                }*/
             }
+            let (width, height) = boot_info.gop_mode.info().resolution();
             let font = unsafe {
                 core::slice::from_raw_parts_mut(
                     boot_info.font_start as *mut u8,
@@ -76,7 +89,30 @@ pub extern "C" fn start(information_address: *mut BootInformation) -> ! {
                 )
             };
             let mut font_parser = TtfParser::new(font);
-            font_parser.test();
+            let polygons = font_parser.test();
+            let mut offset = 1;
+            let mut y_offset = 1;
+            for mut polygon in polygons {
+                polygon.flip();
+                polygon.scale(0.1);
+                polygon.move_down(y_offset * 100);
+                for line in polygon.vertices() {
+                    for point in line {
+                        unsafe {
+                            (*boot_info.framebuffer.wrapping_add(
+                                point.get_y() as usize * width
+                                    + point.get_x() as usize
+                                    + (offset * 100),
+                            )) = 0x0000FFFF;
+                        }
+                    }
+                }
+                offset += 1;
+                if offset > 8 {
+                    y_offset += 1;
+                    offset = 1;
+                }
+            }
         },
         AwaitType::AlwaysPoll,
     );

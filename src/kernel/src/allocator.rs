@@ -3,12 +3,12 @@ use core::{ptr, u8};
 use alloc::alloc::*;
 pub mod linked_list;
 
-use crate::{memory::paging::Page, EntryFlags, MemoryController};
+use crate::{memory::paging::Page, serial_println, EntryFlags, MemoryController};
 
 use self::linked_list::LinkedListAllocator;
 
-pub const HEAP_START: usize = 0xFFFFFFFFFF000000;
-pub const HEAP_SIZE: usize = 1000 * 1024; // 100 KiB
+pub const HEAP_START: usize = 0xFFFFFFFFF0000000;
+pub const HEAP_SIZE: usize = 1024 * 1024 * 16; // 100 KiB
 
 fn align_up(addr: usize, align: usize) -> usize {
     (addr + align - 1) & !(align - 1)
@@ -43,6 +43,7 @@ unsafe impl GlobalAlloc for Locked<LinkedListAllocator> {
             }
             alloc_start as *mut u8
         } else {
+            serial_println!("Out of memory");
             ptr::null_mut()
         }
     }

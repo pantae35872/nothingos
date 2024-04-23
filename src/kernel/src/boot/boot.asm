@@ -91,5 +91,5 @@ p3_table:
 p2_table:
   resb 4096 * 32
 stack_bottom:
-  resb 4096 * 32
+  resb 4096 * 64
 stack_top:

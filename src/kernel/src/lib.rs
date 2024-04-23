@@ -62,6 +62,7 @@ pub mod allocator;
 pub mod driver;
 pub mod filesystem;
 pub mod gdt;
+pub mod graphics;
 pub mod interrupt;
 pub mod memory;
 pub mod print;
