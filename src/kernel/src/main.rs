@@ -17,7 +17,7 @@ use core::f64::consts::PI;
 use alloc::vec::Vec;
 use nothingos::print::ttf_parser::TtfParser;
 use nothingos::task::executor::{AwaitType, Executor};
-use nothingos::{driver, serial_print, serial_println, BootInformation};
+use nothingos::{driver, graphics, serial_print, serial_println, BootInformation};
 use uefi::proto::console::gop::PixelFormat;
 
 pub fn hlt_loop() -> ! {
@@ -51,34 +51,6 @@ pub extern "C" fn start(information_address: *mut BootInformation) -> ! {
     );
     executor.spawn(
         async {
-            if boot_info.gop_mode.info().pixel_format() == PixelFormat::Rgb {
-                serial_println!("This is rgb");
-                let (width, height) = boot_info.gop_mode.info().resolution();
-                for y in 0..height {
-                    for x in 0..width {
-                        unsafe {
-                            (*boot_info.framebuffer.wrapping_add(y * width + x)) = 0x00FFFFFF;
-                        }
-                    }
-                }
-            } else if boot_info.gop_mode.info().pixel_format() == PixelFormat::Bgr {
-                serial_println!("This is bgr");
-                let (width, height) = boot_info.gop_mode.info().resolution();
-                /*let triangle = draw_triangle(
-                    &Coordinate::new(100, 100),
-                    &Coordinate::new(200, 200),
-                    &Coordinate::new(200, 100),
-                );
-                for line in triangle {
-                    for point in line {
-                        unsafe {
-                            (*boot_info.framebuffer.wrapping_add(
-                                point.get_x() as usize * width + point.get_y() as usize,
-                            )) = 0x0000FFFF;
-                        }
-                    }
-                }*/
-            }
             let (width, height) = boot_info.gop_mode.info().resolution();
             let font = unsafe {
                 core::slice::from_raw_parts_mut(
@@ -159,11 +131,11 @@ pub extern "C" fn start(information_address: *mut BootInformation) -> ! {
                 //polygon.fill();
                 polygon.move_down(y_offset as f32 * 100.0);
                 for pixel in polygon.render() {
-                    unsafe {
-                        (*boot_info.framebuffer.wrapping_add(
-                            (pixel.y() * width as i32 + pixel.x() + (offset * 100)) as usize,
-                        )) = 0x00FFFFFF;
-                    }
+                    graphics::DRIVER.get().unwrap().lock().plot(
+                        (pixel.x() + (offset * 100)) as usize,
+                        pixel.y() as usize,
+                        0xFFFFFF,
+                    );
                 }
                 offset += 1;
                 if offset > 15 {

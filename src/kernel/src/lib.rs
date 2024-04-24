@@ -240,6 +240,7 @@ pub fn init(information_address: *mut BootInformation) {
     gdt::init_gdt(&mut memory_controller);
     interrupt::init(&mut memory_controller);
     x86_64::instructions::interrupts::enable();
+    graphics::init(boot_info);
     print::init(0xb8000, 0xb, 0);
     allocator::init(&mut memory_controller);
     driver::init(&mut memory_controller);
