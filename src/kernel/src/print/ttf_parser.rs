@@ -272,7 +272,7 @@ impl<'a> TtfParser<'a> {
                 let p0 = points[i];
                 let p1 = points[(i + 1) % points.len()];
                 let p2 = points[(i + 2) % points.len()];
-                draw_bezier(p0, p1, p2, 100, &mut data);
+                draw_bezier(p0, p1, p2, 20, &mut data);
             }
         }
 

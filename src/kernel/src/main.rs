@@ -15,11 +15,8 @@ extern crate spin;
 use core::f64::consts::PI;
 
 use alloc::vec::Vec;
-use nothingos::graphics::frame_renderer::FrameRenderer;
-use nothingos::graphics::{draw_line, frame_renderer};
 use nothingos::print::ttf_parser::TtfParser;
 use nothingos::task::executor::{AwaitType, Executor};
-use nothingos::utils::math::Polygon;
 use nothingos::{driver, serial_print, serial_println, BootInformation};
 use uefi::proto::console::gop::PixelFormat;
 
@@ -146,6 +143,15 @@ pub extern "C" fn start(information_address: *mut BootInformation) -> ! {
             polygons.push(font_parser.draw_char(&'x'));
             polygons.push(font_parser.draw_char(&'y'));
             polygons.push(font_parser.draw_char(&'z'));
+            polygons.push(font_parser.draw_char(&'#'));
+            polygons.push(font_parser.draw_char(&'%'));
+            polygons.push(font_parser.draw_char(&'^'));
+            polygons.push(font_parser.draw_char(&'('));
+            polygons.push(font_parser.draw_char(&')'));
+            polygons.push(font_parser.draw_char(&'&'));
+            polygons.push(font_parser.draw_char(&'!'));
+            polygons.push(font_parser.draw_char(&'~'));
+            polygons.push(font_parser.draw_char(&'@'));
             for mut polygon in polygons {
                 //polygon.flip();
                 polygon.scale(0.1);
@@ -154,10 +160,9 @@ pub extern "C" fn start(information_address: *mut BootInformation) -> ! {
                 polygon.move_down(y_offset as f32 * 100.0);
                 for pixel in polygon.render() {
                     unsafe {
-                        (*boot_info
-                            .framebuffer
-                            .wrapping_add(pixel.y() * width + pixel.x() + (offset * 100))) =
-                            0x00FFFFFF;
+                        (*boot_info.framebuffer.wrapping_add(
+                            (pixel.y() * width as i32 + pixel.x() + (offset * 100)) as usize,
+                        )) = 0x00FFFFFF;
                     }
                 }
                 offset += 1;

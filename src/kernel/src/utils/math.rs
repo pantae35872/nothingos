@@ -7,7 +7,7 @@ use core::{
 
 use alloc::{collections::BinaryHeap, vec::Vec};
 
-use crate::graphics::{frame_renderer::FrameRenderer, Coordinate};
+use crate::graphics::Coordinate;
 
 struct Edge {
     y_upper: f32,
@@ -53,7 +53,7 @@ impl Vector2 {
     }
 
     pub fn as_coordinate(&self) -> Coordinate {
-        return Coordinate::new(self.x as usize, self.y as usize);
+        return Coordinate::new(self.x as i32, self.y as i32);
     }
 }
 impl Sub for Vector2 {
@@ -158,7 +158,7 @@ impl Polygon {
         return self
             .data
             .iter()
-            .map(|e| Coordinate::new(e.x() as usize, e.y() as usize))
+            .map(|e| Coordinate::new(e.x() as i32, e.y() as i32))
             .collect();
     }
 

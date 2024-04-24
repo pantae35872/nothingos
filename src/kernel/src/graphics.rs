@@ -2,25 +2,22 @@ use alloc::vec::Vec;
 
 use crate::{serial_println, utils::math::Vector2};
 
-use self::frame_renderer::FrameRenderer;
-
-pub mod frame_renderer;
 #[derive(Debug, Clone, Copy)]
 pub struct Coordinate {
-    x: usize,
-    y: usize,
+    x: i32,
+    y: i32,
 }
 
 impl Coordinate {
-    pub fn new(x: usize, y: usize) -> Self {
+    pub fn new(x: i32, y: i32) -> Self {
         Self { x, y }
     }
 
-    pub fn x(&self) -> usize {
+    pub fn x(&self) -> i32 {
         return self.x;
     }
 
-    pub fn y(&self) -> usize {
+    pub fn y(&self) -> i32 {
         return self.y;
     }
 }
@@ -29,8 +26,8 @@ pub fn draw_line(start: &Vector2, end: &Vector2, points: &mut Vec<Vector2>) {
     let start = start.as_coordinate();
     let end = end.as_coordinate();
 
-    let dx = (end.x() as i32 - start.x() as i32).abs();
-    let dy = (end.y() as i32 - start.y() as i32).abs();
+    let dx = ((end.x() - start.x()) as i32).abs();
+    let dy = ((end.y() - start.y()) as i32).abs();
     let sx = if start.x() < end.x() { 1 } else { -1 };
     let sy = if start.y() < end.y() { 1 } else { -1 };
     let mut err = dx - dy;
