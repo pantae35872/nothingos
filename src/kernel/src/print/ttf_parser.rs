@@ -223,12 +223,10 @@ impl<'a> TtfParser<'a> {
         let mut buffer = [0; 4];
         charactor.encode_utf8(&mut buffer);
         let index = self.mappings.get(&u32::from_le_bytes(buffer)).unwrap();
-        self.reader.go_to(self.glyph[*index] as usize).unwrap();
-        if let Some(glyph) = self.read_glyph() {
+        if let Some(glyph) = self.read_glyph(self.glyph[*index] as usize) {
             return Self::render(&glyph);
         } else {
-            self.reader.go_to(self.glyph[0] as usize).unwrap();
-            let glyph = self.read_glyph().unwrap();
+            let glyph = self.read_glyph(self.glyph[0] as usize).unwrap();
             return Self::render(&glyph);
         }
     }
@@ -314,11 +312,71 @@ impl<'a> TtfParser<'a> {
         return contours;
     }
 
-    fn read_glyph(&mut self) -> Option<GlyphData> {
+    fn read_compound_glyph(&mut self, glyph_location: usize) -> GlyphData {
+        self.reader.go_to(glyph_location as usize).unwrap();
+        self.reader.skip(2 * 5).unwrap();
+
+        let mut points: Vec<(bool, Vector2)> = Vec::new();
+        let mut contour_end_indices = Vec::new();
+
+        loop {
+            let (mut compoent_glyph, is_last) = self.read_next_component_glyph();
+
+            let index_offset = points.len();
+            points.append(&mut compoent_glyph.contours);
+
+            for end_index in compoent_glyph.contour_end_indices {
+                contour_end_indices.push(end_index + index_offset as u16);
+            }
+
+            if is_last {
+                break;
+            }
+        }
+        return GlyphData {
+            contours: points,
+            contour_end_indices,
+        };
+    }
+
+    fn read_next_component_glyph(&mut self) -> (GlyphData, bool) {
+        let flags = self.reader.read_u16(Endian::BigEndian).unwrap();
+        let glyph_index = self.reader.read_u16(Endian::BigEndian).unwrap();
+        let previous_location = self.reader.get_index();
+        let mut glyph = self
+            .read_glyph(self.glyph[glyph_index as usize] as usize)
+            .unwrap();
+        self.reader.go_to(previous_location).unwrap();
+
+        let offset_x = inline_if!(
+            ((flags >> 0) & 1) == 1,
+            self.reader.read_i16(Endian::BigEndian).unwrap() as f32,
+            self.reader.read_byte().unwrap() as f32
+        );
+        let offset_y = inline_if!(
+            ((flags >> 0) & 1) == 1,
+            self.reader.read_i16(Endian::BigEndian).unwrap() as f32,
+            self.reader.read_byte().unwrap() as f32
+        );
+
+        if (flags >> 3) & 1 == 1 {
+            self.reader.skip(6).unwrap();
+        } else if (flags >> 6) & 1 == 1 {
+            self.reader.skip(6 * 2).unwrap();
+        }
+
+        for point in glyph.contours.iter_mut() {
+            point.1 = point.1 + Vector2::new(offset_x, offset_y);
+        }
+
+        return (glyph, (flags >> 5) & 1 != 1);
+    }
+
+    fn read_glyph(&mut self, glyph_location: usize) -> Option<GlyphData> {
+        self.reader.go_to(glyph_location).unwrap();
         let contour_end_indices_count = self.reader.read_i16(Endian::BigEndian).unwrap();
         if contour_end_indices_count < 0 {
-            serial_println!("Glyph is compound");
-            return None;
+            return Some(self.read_compound_glyph(glyph_location));
         }
         self.reader.skip(8).unwrap();
         let mut contour_end_indices: Vec<u16> = vec![0u16; contour_end_indices_count as usize];

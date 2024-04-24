@@ -40,6 +40,14 @@ impl Vector2 {
         return self.x;
     }
 
+    pub fn set_x(&mut self, value: f32) {
+        self.x = value;
+    }
+
+    pub fn set_y(&mut self, value: f32) {
+        self.y = value;
+    }
+
     pub fn y(&self) -> f32 {
         return self.y;
     }
