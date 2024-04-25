@@ -7,26 +7,12 @@ use core::{
 
 use alloc::{collections::BinaryHeap, vec::Vec};
 
-use crate::graphics::Coordinate;
+use crate::{
+    graphics::{draw_line, Coordinate},
+    serial_println,
+};
 
-struct Edge {
-    y_upper: f32,
-    x_intercept: f32,
-    slope_inverse: f32,
-}
-
-impl Edge {
-    fn new(p1: Vector2, p2: Vector2) -> Self {
-        let (lower, upper) = if p1.y < p2.y { (p1, p2) } else { (p2, p1) };
-        Edge {
-            y_upper: upper.y,
-            x_intercept: lower.x,
-            slope_inverse: (upper.x - lower.x) / (upper.y - lower.y),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct Vector2 {
     x: f32,
     y: f32,
@@ -189,60 +175,62 @@ impl Polygon {
     }
 
     pub fn fill(&mut self) {
-        let mut edges: Vec<Edge> = Vec::new();
-        let mut y_min = f32::INFINITY;
-        let mut y_max = f32::NEG_INFINITY;
-        let polygon = &self.data;
-        for i in 0..polygon.len() {
-            y_min = f32::min(y_min, polygon[i].y);
-            y_max = f32::max(y_max, polygon[i].y);
-            let next_index = if i == polygon.len() - 1 { 0 } else { i + 1 };
-            let edge = Edge::new(polygon[i], polygon[next_index]);
-            edges.push(edge);
-        }
+        let data = self.data.clone();
+        let maxy = self
+            .data
+            .iter()
+            .max_by(|x, y| x.y().partial_cmp(&y.y()).unwrap())
+            .unwrap();
+        let miny = self
+            .data
+            .iter()
+            .min_by(|x, y| x.y().partial_cmp(&y.y()).unwrap())
+            .unwrap();
 
-        let mut scanline: Vec<Vector2> = Vec::new();
-        let mut active_edges: BinaryHeap<(i32, i32)> = BinaryHeap::new(); // (x, dx)
+        for i in (miny.y as i32)..(maxy.y as i32) {
+            let mut line: Vec<&Vector2> = data.iter().filter(|e| e.y() as i32 == i).collect();
+            line.sort_by(|x, y| x.x().partial_cmp(&y.x()).unwrap());
+            if !line.is_empty() {
+                let mut corners = Vec::new();
+                line.dedup();
+                for i in 0..line.len() {
+                    let se = line.get(i).unwrap();
 
-        for y in (y_min as i32)..=(y_max as i32) {
-            edges.retain(|edge| edge.y_upper > y as f32);
-            for edge in &edges {
-                if edge.y_upper > y as f32 {
-                    active_edges.push((
-                        (edge.x_intercept * 10.0) as i32,
-                        (edge.slope_inverse * 10.0) as i32,
-                    ));
-                }
-            }
-
-            // Fill pixels between active edges
-            let mut x_min = f32::INFINITY;
-            let mut x_max = f32::NEG_INFINITY;
-            while let Some((x, dx)) = active_edges.pop() {
-                let x_f32 = x as f32 / 10.0;
-                x_min = f32::min(x_min, x_f32);
-                x_max = f32::max(x_max, x_f32);
-
-                if let Some((nx, _)) = active_edges.peek() {
-                    if *nx != x {
-                        for xx in (x_min as i32)..=(x_max as i32) {
-                            scanline.push(Vector2::new(xx as f32, y as f32));
+                    if i == 0 {
+                        if !line.get(1).is_some_and(|e| e.x == se.x + 1.0) {
+                            corners.push(se);
                         }
-                        x_min = f32::INFINITY;
-                        x_max = f32::NEG_INFINITY;
+                        continue;
                     }
-                } else {
-                    for xx in (x_min as i32)..=(x_max as i32) {
-                        scanline.push(Vector2::new(xx as f32, y as f32));
+
+                    if i == line.len() - 1 {
+                        if !line.get(i - 1).is_some_and(|e| e.x == se.x - 1.0) {
+                            corners.push(se);
+                        }
+                        continue;
+                    }
+
+                    if !(line.get(i - 1).is_some_and(|e| e.x == se.x - 1.0)
+                        && line.get(i + 1).is_some_and(|e| e.x == se.x + 1.0))
+                    {
+                        corners.push(se);
                     }
                 }
 
-                if dx > 0 {
-                    active_edges.push((x + dx, dx));
+                serial_println!("Index: {}, Corner: {:?}", i, corners);
+                if corners.len() % 2 == 0 {
+                    for pair in corners.chunks_exact(2) {
+                        draw_line(pair[0], pair[1], &mut self.data);
+                    }
+                } else if corners.len() % 2 != 0 {
+                    let middle_index = corners.len() / 2;
+                    corners.remove(middle_index);
+                    for pair in corners.chunks_exact(2) {
+                        draw_line(pair[0], pair[1], &mut self.data);
+                    }
                 }
             }
         }
-        self.data = scanline;
     }
 
     pub fn scale(&mut self, scale_factor: f64) {
@@ -250,6 +238,7 @@ impl Polygon {
             vertex.x = round(vertex.x() as f64 * scale_factor) as f32;
             vertex.y = round(vertex.y() as f64 * scale_factor) as f32;
         }
+        self.data.dedup();
     }
 }
 

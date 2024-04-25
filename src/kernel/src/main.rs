@@ -124,11 +124,21 @@ pub extern "C" fn start(information_address: *mut BootInformation) -> ! {
             polygons.push(font_parser.draw_char(&'!'));
             polygons.push(font_parser.draw_char(&'~'));
             polygons.push(font_parser.draw_char(&'@'));
+            polygons.push(font_parser.draw_char(&'0'));
+            polygons.push(font_parser.draw_char(&'1'));
+            polygons.push(font_parser.draw_char(&'2'));
+            polygons.push(font_parser.draw_char(&'3'));
+            polygons.push(font_parser.draw_char(&'4'));
+            polygons.push(font_parser.draw_char(&'5'));
+            polygons.push(font_parser.draw_char(&'6'));
+            polygons.push(font_parser.draw_char(&'7'));
+            polygons.push(font_parser.draw_char(&'8'));
+            polygons.push(font_parser.draw_char(&'9'));
             for mut polygon in polygons {
                 //polygon.flip();
                 polygon.scale(0.1);
                 polygon.flip();
-                //polygon.fill();
+                polygon.fill();
                 polygon.move_down(y_offset as f32 * 100.0);
                 for pixel in polygon.render() {
                     graphics::DRIVER.get().unwrap().lock().plot(
