@@ -134,21 +134,25 @@ pub extern "C" fn start(information_address: *mut BootInformation) -> ! {
             polygons.push(font_parser.draw_char(&'7'));
             polygons.push(font_parser.draw_char(&'8'));
             polygons.push(font_parser.draw_char(&'9'));
+            polygons.push(font_parser.draw_char(&'/'));
+            polygons.push(font_parser.draw_char(&'='));
+            polygons.push(font_parser.draw_char(&'+'));
+            polygons.push(font_parser.draw_char(&'<'));
+            polygons.push(font_parser.draw_char(&'>'));
+            polygons.push(font_parser.draw_char(&'?'));
             for mut polygon in polygons {
-                //polygon.flip();
-                polygon.scale(0.1);
-                polygon.flip();
-                polygon.fill();
-                polygon.move_down(y_offset as f32 * 100.0);
-                for pixel in polygon.render() {
+                polygon.0.scale(0.01);
+                polygon.0.flip();
+                polygon.0.move_down(10.0);
+                for pixel in polygon.0.render() {
                     graphics::DRIVER.get().unwrap().lock().plot(
-                        (pixel.x() + (offset * 100)) as usize,
+                        (pixel.x() + offset) as usize,
                         pixel.y() as usize,
                         0xFFFFFF,
                     );
                 }
-                offset += 1;
-                if offset > 15 {
+                offset += polygon.1 as i32 >> 6;
+                if offset > 1800 {
                     y_offset += 1;
                     offset = 1;
                 }

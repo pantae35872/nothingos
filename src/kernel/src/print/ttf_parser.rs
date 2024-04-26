@@ -21,7 +21,7 @@ use alloc::{
 pub struct TtfParser<'a> {
     reader: BufferReader<'a>,
     tables: BTreeMap<String, TableHeader>,
-    glyph: Vec<u32>,
+    glyph: Vec<(u32, u32)>,
     mappings: BTreeMap<u32, usize>,
 }
 
@@ -98,7 +98,7 @@ impl<'a> TtfParser<'a> {
             self.tables
                 .insert(tag, TableHeader::new(checksum, offset, length));
         }
-        self.glyph = self.get_all_glyph_locations();
+        self.glyph = self.get_all_glyph();
         let cmap = self.tables.get("cmap").unwrap();
         self.reader.go_to(cmap.offset as usize).unwrap();
 
@@ -219,19 +219,23 @@ impl<'a> TtfParser<'a> {
         return Ok(());
     }
 
-    pub fn draw_char(&mut self, charactor: &char) -> Polygon {
+    pub fn draw_char(&mut self, charactor: &char) -> (Polygon, u32) {
         let mut buffer = [0; 4];
         charactor.encode_utf8(&mut buffer);
-        let index = self.mappings.get(&u32::from_le_bytes(buffer)).unwrap();
-        if let Some(glyph) = self.read_glyph(self.glyph[*index] as usize) {
-            return Self::render(&glyph);
-        } else {
-            let glyph = self.read_glyph(self.glyph[0] as usize).unwrap();
-            return Self::render(&glyph);
+        if let Some(index) = self.mappings.get(&u32::from_le_bytes(buffer)) {
+            let glyph_index = self.glyph[*index];
+            if let Some(glyph) = self.read_glyph(glyph_index.0 as usize) {
+                return (Self::render(&glyph), glyph_index.1);
+            } else {
+                let glyph = self.read_glyph(glyph_index.0 as usize).unwrap();
+                return (Self::render(&glyph), glyph_index.1);
+            }
         }
+        let missing = self.read_glyph(self.glyph[0].0 as usize).unwrap();
+        return (Self::render(&missing), self.glyph[0].1);
     }
 
-    fn get_all_glyph_locations(&mut self) -> Vec<u32> {
+    fn get_all_glyph(&mut self) -> Vec<(u32, u32)> {
         self.reader
             .go_to((self.tables.get("maxp").unwrap().offset + 4) as usize)
             .unwrap();
@@ -260,7 +264,13 @@ impl<'a> TtfParser<'a> {
             all_glyph_locations[glyph_index as usize] = glyph_table_start + glyph_data_offset;
         }
 
-        return all_glyph_locations;
+        let glyph_spacing = self.get_glyph_spacings(num_glyphs.into());
+
+        return all_glyph_locations
+            .iter()
+            .enumerate()
+            .map(|(i, e)| (*e, glyph_spacing[i] as u32))
+            .collect();
     }
 
     fn render(glyph: &GlyphData) -> Polygon {
@@ -277,6 +287,33 @@ impl<'a> TtfParser<'a> {
         }
 
         return Polygon::new(data);
+    }
+
+    fn get_glyph_spacings(&mut self, num_glyphs: usize) -> Vec<i32> {
+        self.reader
+            .go_to(self.tables.get("hhea").unwrap().offset as usize)
+            .unwrap();
+        self.reader.skip(34).unwrap();
+        let num_advance_width_metrics = self.reader.read_i16(Endian::BigEndian).unwrap();
+
+        self.reader
+            .go_to(self.tables.get("hmtx").unwrap().offset as usize)
+            .unwrap();
+        let mut advance_widths = vec![0i32; num_glyphs];
+        for advance_width in advance_widths.iter_mut() {
+            *advance_width = self.reader.read_u16(Endian::BigEndian).unwrap() as i32;
+            self.reader.skip(2).unwrap();
+        }
+
+        let num_mono_spaced = num_glyphs as i16 - num_advance_width_metrics;
+        let mono_space_advance_width = advance_widths[(num_advance_width_metrics - 1) as usize];
+
+        for i in 0..num_mono_spaced {
+            let glyph_index = num_advance_width_metrics + i;
+            advance_widths[glyph_index as usize] = mono_space_advance_width;
+        }
+
+        return advance_widths;
     }
 
     fn implied_points(glyph: &GlyphData) -> Vec<Vec<Vector2>> {
@@ -344,7 +381,7 @@ impl<'a> TtfParser<'a> {
         let glyph_index = self.reader.read_u16(Endian::BigEndian).unwrap();
         let previous_location = self.reader.get_index();
         let mut glyph = self
-            .read_glyph(self.glyph[glyph_index as usize] as usize)
+            .read_glyph(self.glyph[glyph_index as usize].0 as usize)
             .unwrap();
         self.reader.go_to(previous_location).unwrap();
 
