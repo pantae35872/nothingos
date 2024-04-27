@@ -95,12 +95,11 @@ pub trait Testable {
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    //println!("{}", info);
+    println!("{}", info);
     #[cfg(feature = "test")]
     {
         test_panic_handler(info);
     }
-    serial_println!("panic! {}", info);
     #[cfg(not(feature = "test"))]
     hlt_loop();
 }
@@ -241,8 +240,8 @@ pub fn init(information_address: *mut BootInformation) {
     interrupt::init(&mut memory_controller);
     x86_64::instructions::interrupts::enable();
     graphics::init(boot_info);
-    print::init(0xb8000, 0xb, 0);
     allocator::init(&mut memory_controller);
+    print::init(boot_info, 0x00ff44);
     driver::init(&mut memory_controller);
     task::init();
     ACTIVE_TABLE.init_once(|| Mutex::new(active_table));

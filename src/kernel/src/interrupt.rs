@@ -4,7 +4,6 @@ use crate::hlt_loop;
 use crate::memory::paging::Page;
 use crate::memory::Frame;
 use crate::println;
-use crate::serial_println;
 use crate::EntryFlags;
 use crate::MemoryController;
 use conquer_once::spin::OnceCell;
@@ -200,7 +199,7 @@ extern "x86-interrupt" fn overflow_handler(stack_frame: InterruptStackFrame) {
 }
 
 extern "x86-interrupt" fn breakpoint_handle(_stack_frame: InterruptStackFrame) {
-    serial_println!("BreakPoint");
+    println!("BreakPoint");
 }
 
 extern "x86-interrupt" fn double_fault_handler(
@@ -262,9 +261,9 @@ extern "x86-interrupt" fn page_fault_handler(
 ) {
     use x86_64::registers::control::Cr2;
 
-    serial_println!("EXCEPTION: PAGE FAULT");
-    serial_println!("Accessed Address: {:?}", Cr2::read());
-    serial_println!("Error Code: {:?}", error_code);
-    serial_println!("{:#?}", stack_frame);
+    println!("EXCEPTION: PAGE FAULT");
+    println!("Accessed Address: {:?}", Cr2::read());
+    println!("Error Code: {:?}", error_code);
+    println!("{:#?}", stack_frame);
     panic!("PAGE FAULT");
 }

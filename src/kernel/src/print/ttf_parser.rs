@@ -5,7 +5,7 @@ use core::{
 
 use crate::{
     graphics::{draw_bezier, draw_line},
-    inline_if, println, serial_println,
+    inline_if, println,
     utils::{
         buffer_reader::{BufferReader, Endian},
         math::{Polygon, Vector2},

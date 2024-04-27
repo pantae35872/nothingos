@@ -613,6 +613,7 @@ impl AhciController {
                 device = pci.read(&bus, &slot, &0, &0x02);
                 if (vendor == 0x29228086 && device == 0x2922)
                     || (vendor == 0x28298086 && device == 0x2829)
+                    || (vendor == 0xa1038086 && device == 0xa103)
                 {
                     return Some(pci.read(&bus, &slot, &0, &0x24).into());
                 }

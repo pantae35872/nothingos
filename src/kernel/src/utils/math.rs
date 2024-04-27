@@ -7,10 +7,7 @@ use core::{
 
 use alloc::{collections::BinaryHeap, vec::Vec};
 
-use crate::{
-    graphics::{draw_line, Coordinate},
-    serial_println,
-};
+use crate::graphics::{draw_line, Coordinate};
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct Vector2 {
@@ -168,7 +165,7 @@ impl Polygon {
         }
     }
 
-    pub fn move_down(&mut self, amount: f32) {
+    pub fn move_by(&mut self, amount: f32) {
         for vertex in self.data.iter_mut() {
             vertex.y += amount;
         }
@@ -236,7 +233,6 @@ impl Polygon {
                     }
                 }
 
-                serial_println!("Index: {}, Corner: {:?}", i, corners);
                 if corners.len() % 2 == 0 {
                     for pair in corners.chunks_exact(2) {
                         draw_line(pair[0], pair[1], &mut self.data);

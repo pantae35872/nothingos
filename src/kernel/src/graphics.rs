@@ -1,11 +1,11 @@
-use core::slice::{self, from_raw_parts_mut};
+use core::slice::from_raw_parts_mut;
 
 use alloc::vec::Vec;
 use conquer_once::spin::OnceCell;
 use spin::mutex::Mutex;
-use uefi::proto::console::gop::{Mode, ModeInfo, PixelFormat};
+use uefi::proto::console::gop::{ModeInfo, PixelFormat};
 
-use crate::{serial_println, utils::math::Vector2, BootInformation};
+use crate::{utils::math::Vector2, BootInformation};
 
 pub static DRIVER: OnceCell<Mutex<Graphic>> = OnceCell::uninit();
 
