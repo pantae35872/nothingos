@@ -46,6 +46,16 @@ pub fn init(bootinfo: &BootInformation) {
     });
 }
 
+pub fn apply_alpha(rgb: u32, alpha: u8) -> u32 {
+    let r = ((rgb >> 16) & 0xFF) as u8;
+    let g = ((rgb >> 8) & 0xFF) as u8;
+    let b = (rgb & 0xFF) as u8;
+
+    let alpha = (alpha as u32) << 24;
+
+    alpha | (r as u32) << 16 | (g as u32) << 8 | b as u32
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct Coordinate {
     x: i32,

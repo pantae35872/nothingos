@@ -88,13 +88,11 @@ impl<'a> TtfParser<'a> {
             .read_u16(Endian::BigEndian)
             .expect("Cannot read numtable");
         self.reader.skip(6).unwrap();
-        serial_println!("numtable: {}", num_table);
         for _ in 0..num_table {
             let tag = self.read_tag();
             let checksum = self.reader.read_u32(Endian::BigEndian).unwrap();
             let offset = self.reader.read_u32(Endian::BigEndian).unwrap();
             let length = self.reader.read_u32(Endian::BigEndian).unwrap();
-            serial_println!("Tag: {} Location: {} Checksum: {}", tag, offset, checksum);
             self.tables
                 .insert(tag, TableHeader::new(checksum, offset, length));
         }
@@ -102,12 +100,12 @@ impl<'a> TtfParser<'a> {
         let cmap = self.tables.get("cmap").unwrap();
         self.reader.go_to(cmap.offset as usize).unwrap();
 
-        let version = self.reader.read_u16(Endian::BigEndian).unwrap();
+        let _version = self.reader.read_u16(Endian::BigEndian).unwrap();
         let num_sub_tables = self.reader.read_u16(Endian::BigEndian).unwrap();
 
         let mut cmap_subtable_offset = u32::MAX;
 
-        for i in 0..num_sub_tables {
+        for _ in 0..num_sub_tables {
             let platform_id = self.reader.read_u16(Endian::BigEndian).unwrap();
             let platform_specific_id = self.reader.read_u16(Endian::BigEndian).unwrap();
             let offset = self.reader.read_u32(Endian::BigEndian).unwrap();
@@ -138,9 +136,9 @@ impl<'a> TtfParser<'a> {
             return Err(ParseTtfError::FormatNotSupported);
         } else if format == 12 {
             let _reserved = self.reader.read_u16(Endian::BigEndian).unwrap();
-            let subtable_byte_length_including_header =
+            let _subtable_byte_length_including_header =
                 self.reader.read_u32(Endian::BigEndian).unwrap();
-            let language_code = self.reader.read_u32(Endian::BigEndian).unwrap();
+            let _language_code = self.reader.read_u32(Endian::BigEndian).unwrap();
             let num_groups = self.reader.read_u32(Endian::BigEndian).unwrap();
 
             for i in 0..num_groups {

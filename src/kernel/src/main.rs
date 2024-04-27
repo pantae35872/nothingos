@@ -15,6 +15,7 @@ extern crate spin;
 use core::f64::consts::PI;
 
 use alloc::vec::Vec;
+use nothingos::graphics::apply_alpha;
 use nothingos::print::ttf_parser::TtfParser;
 use nothingos::task::executor::{AwaitType, Executor};
 use nothingos::{driver, graphics, serial_print, serial_println, BootInformation};
@@ -141,9 +142,8 @@ pub extern "C" fn start(information_address: *mut BootInformation) -> ! {
             polygons.push(font_parser.draw_char(&'>'));
             polygons.push(font_parser.draw_char(&'?'));
             for mut polygon in polygons {
-                polygon.0.scale(0.01);
-                polygon.0.flip();
-                polygon.0.move_down(10.0);
+                polygon.0.scale(0.011);
+                polygon.0.set_y(100.0);
                 for pixel in polygon.0.render() {
                     graphics::DRIVER.get().unwrap().lock().plot(
                         (pixel.x() + offset) as usize,
@@ -151,7 +151,7 @@ pub extern "C" fn start(information_address: *mut BootInformation) -> ! {
                         0xFFFFFF,
                     );
                 }
-                offset += polygon.1 as i32 >> 6;
+                offset += (polygon.1 as i32 >> 6) + 1;
                 if offset > 1800 {
                     y_offset += 1;
                     offset = 1;
