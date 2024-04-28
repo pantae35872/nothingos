@@ -236,12 +236,12 @@ pub fn init(information_address: *mut BootInformation) {
         frame_allocator,
         stack_allocator,
     };
+    allocator::init(&mut memory_controller);
+    graphics::init(boot_info);
+    print::init(boot_info, 0x00ff44);
     gdt::init_gdt(&mut memory_controller);
     interrupt::init(&mut memory_controller);
     x86_64::instructions::interrupts::enable();
-    graphics::init(boot_info);
-    allocator::init(&mut memory_controller);
-    print::init(boot_info, 0x00ff44);
     driver::init(&mut memory_controller);
     task::init();
     ACTIVE_TABLE.init_once(|| Mutex::new(active_table));

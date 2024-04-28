@@ -12,6 +12,7 @@ extern crate lazy_static;
 extern crate nothingos;
 extern crate spin;
 
+use core::arch::asm;
 use core::f64::consts::PI;
 
 use alloc::vec::Vec;
@@ -43,10 +44,7 @@ pub extern "C" fn start(information_address: *mut BootInformation) -> ! {
                 .lock();
             let drive = controller.get_drive(&0).await.expect("Cannot get drive");
             //let mut data: [u8; 8196] = [0u8; 8196];
-            println!("Async !!!!");
             drive.identify().await.expect("could not identify drive");
-            println!("Async !!!!");
-            println!("{}", drive.lba_end());
             /*let mut gpt = GPTPartitions::new(drive).await.expect("Error");
             let partition1 = gpt.read_partition(0).await.expect("Error");
 
@@ -54,7 +52,6 @@ pub extern "C" fn start(information_address: *mut BootInformation) -> ! {
         },
         AwaitType::AlwaysPoll,
     );
-    executor.spawn(async {}, AwaitType::AlwaysPoll);
 
     executor.spawn(driver::timer::timer_task(), AwaitType::WakePoll);
     executor.spawn(driver::keyboard::keyboard_task(), AwaitType::WakePoll);

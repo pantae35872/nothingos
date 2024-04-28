@@ -3,12 +3,17 @@ use crate::gdt;
 use crate::hlt_loop;
 use crate::memory::paging::Page;
 use crate::memory::Frame;
+use crate::print;
 use crate::println;
 use crate::EntryFlags;
 use crate::MemoryController;
 use conquer_once::spin::OnceCell;
 use lazy_static::lazy_static;
 use spin::Mutex;
+use x2apic::ioapic::IoApic;
+use x2apic::ioapic::IrqFlags;
+use x2apic::ioapic::IrqMode;
+use x2apic::ioapic::RedirectionTableEntry;
 use x2apic::lapic::xapic_base;
 use x2apic::lapic::LocalApic;
 use x2apic::lapic::LocalApicBuilder;
@@ -58,6 +63,7 @@ lazy_static! {
         idt[InterruptIndex::PrimaryATA.as_usize()].set_handler_fn(primary_ata_interrupt_handler);
         idt[InterruptIndex::SecondaryATA.as_usize()]
             .set_handler_fn(secondary_ata_interrupt_handler);
+        idt[0x80].set_handler_fn(syscall);
         idt
     };
 }
@@ -111,8 +117,8 @@ pub fn init(memory_controller: &mut MemoryController) {
     LAPICS.init_once(|| {
         let mut lapic = LocalApicBuilder::new()
             .timer_vector(32)
-            .error_vector(32)
-            .spurious_vector(32)
+            .error_vector(34)
+            .spurious_vector(33)
             .set_xapic_base(LAPIC_VADDR as u64)
             .build()
             .expect("Could not create lapic");
@@ -217,6 +223,7 @@ extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFr
 }
 
 extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStackFrame) {
+    println!("AAA");
     /*let mut port = Port::new(0x60);
     let scancode: u8 = unsafe { port.read() };
 
@@ -228,6 +235,10 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
         PICS.lock()
             .notify_end_of_interrupt(InterruptIndex::Keyboard.as_u8());
     }*/
+}
+
+extern "x86-interrupt" fn syscall(_stack_frame: InterruptStackFrame) {
+    println!("System call");
 }
 
 extern "x86-interrupt" fn primary_ata_interrupt_handler(_stack_frame: InterruptStackFrame) {
