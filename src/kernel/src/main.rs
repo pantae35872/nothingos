@@ -13,17 +13,10 @@ extern crate nothingos;
 extern crate spin;
 
 use core::arch::asm;
-use core::f64::consts::PI;
 
-use alloc::vec::Vec;
-use nothingos::driver::storage::{ahci_driver, Drive};
-use nothingos::filesystem::partition::gpt_partition::GPTPartitions;
-use nothingos::graphics::apply_alpha;
-use nothingos::print::ttf_parser::TtfParser;
-use nothingos::print::ttf_renderer::{self, TtfRenderer};
+use nothingos::driver::storage::ahci_driver;
 use nothingos::task::executor::{AwaitType, Executor};
-use nothingos::{driver, graphics, println, BootInformation};
-use uefi::proto::console::gop::PixelFormat;
+use nothingos::{driver, println, BootInformation};
 
 pub fn hlt_loop() -> ! {
     loop {
@@ -34,7 +27,13 @@ pub fn hlt_loop() -> ! {
 #[no_mangle]
 pub extern "C" fn start(information_address: *mut BootInformation) -> ! {
     nothingos::init(information_address);
-    println!("Hello world!");
+    println!("Hello world!y$()!{{");
+    println!("Hello world!$()!{{");
+    println!("Hello world!$()!{{");
+    println!("Hello world!$()!{{");
+    println!("Hello world!$()!{{");
+    println!("Hello world!$()!{{");
+    println!("Hello world!$()!{{");
     let mut executor = Executor::new();
     executor.spawn(
         async {

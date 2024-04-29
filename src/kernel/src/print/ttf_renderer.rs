@@ -66,14 +66,14 @@ impl TtfRenderer {
                 Some(polygon) => polygon,
                 None => {
                     let mut polygon = self.parser.draw_char(&charactor);
-                    polygon.0.scale(0.01);
+                    polygon.0.scale(0.03);
                     polygon.0.set_y(100.0);
                     self.cache.insert(*charactor, polygon);
                     self.cache.get(charactor).unwrap()
                 }
             };
             let mut polygon = polygon.clone();
-            polygon.move_by((y_offset as f32 * 20.0) - 80.0);
+            polygon.move_by((y_offset as f32 * 30.0) - 70.0);
             for pixel in polygon.render() {
                 graphics::DRIVER.get().unwrap().lock().plot(
                     (pixel.x() + offset) as usize,
@@ -81,7 +81,7 @@ impl TtfRenderer {
                     self.foreground_color,
                 );
             }
-            offset += (*spaceing as i32 >> 7) + 5;
+            offset += (*spaceing as i32 >> 5) + 0;
             if offset > 1800 {
                 y_offset += 1;
                 offset = 1;

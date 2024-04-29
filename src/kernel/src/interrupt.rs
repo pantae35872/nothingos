@@ -1,19 +1,16 @@
+use core::arch::asm;
+
 use crate::driver;
 use crate::gdt;
 use crate::hlt_loop;
 use crate::memory::paging::Page;
 use crate::memory::Frame;
-use crate::print;
 use crate::println;
 use crate::EntryFlags;
 use crate::MemoryController;
 use conquer_once::spin::OnceCell;
 use lazy_static::lazy_static;
 use spin::Mutex;
-use x2apic::ioapic::IoApic;
-use x2apic::ioapic::IrqFlags;
-use x2apic::ioapic::IrqMode;
-use x2apic::ioapic::RedirectionTableEntry;
 use x2apic::lapic::xapic_base;
 use x2apic::lapic::LocalApic;
 use x2apic::lapic::LocalApicBuilder;
@@ -238,7 +235,9 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
 }
 
 extern "x86-interrupt" fn syscall(_stack_frame: InterruptStackFrame) {
-    println!("System call");
+    let rax: u32;
+    unsafe { asm!("mov {:r}, rax", out(reg) rax) };
+    println!("System call, Rax: {}", rax);
 }
 
 extern "x86-interrupt" fn primary_ata_interrupt_handler(_stack_frame: InterruptStackFrame) {

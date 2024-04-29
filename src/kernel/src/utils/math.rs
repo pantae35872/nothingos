@@ -1,13 +1,16 @@
 use core::{
-    cmp::Ordering,
+    cmp::max,
     f64::consts::PI,
-    fmt::{write, Display},
+    fmt::Display,
     ops::{Add, Div, Mul, Sub},
 };
 
-use alloc::{collections::BinaryHeap, vec::Vec};
+use alloc::vec::Vec;
 
-use crate::graphics::{draw_line, Coordinate};
+use crate::{
+    graphics::{draw_line, Coordinate},
+    println,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct Vector2 {
@@ -176,16 +179,23 @@ impl Polygon {
             .data
             .iter()
             .max_by(|x, y| x.y().partial_cmp(&y.y()).unwrap())
-            .unwrap();
+            .unwrap()
+            .y as i32;
         let miny = self
             .data
             .iter()
             .min_by(|x, y| x.y().partial_cmp(&y.y()).unwrap())
-            .unwrap();
+            .unwrap()
+            .y as i32;
 
-        for (c, i) in ((miny.y as i32)..=(maxy.y as i32)).enumerate() {
+        for (c, i) in (miny.max(0)..=maxy).enumerate() {
             for line in self.data.iter_mut().filter(|e| e.y() as i32 == i) {
                 line.y = location - c as f32;
+            }
+        }
+        for (c, i) in (miny.min(0)..0).rev().enumerate() {
+            for line in self.data.iter_mut().filter(|e| e.y() as i32 == i) {
+                line.y = location + c as f32;
             }
         }
     }

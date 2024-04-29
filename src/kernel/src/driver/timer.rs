@@ -7,7 +7,6 @@ use core::{
 
 use futures_util::task::AtomicWaker;
 
-use crate::print;
 use crate::task::interrupt_wake;
 
 static TICKS: AtomicU64 = AtomicU64::new(0);

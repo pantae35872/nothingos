@@ -575,17 +575,8 @@ impl AhciController {
                 let dt = drive.port.lock().check_type();
 
                 if dt == AHCI_DEV_SATA {
-                    println!("SATA drive found at port {}", i);
                     drive.port.lock().rebase(memory_controller);
                     self.drives.push(drive);
-                } else if dt == AHCI_DEV_SATAPI {
-                    println!("SATAPI drive found at port {}", i);
-                } else if dt == AHCI_DEV_SEMB {
-                    println!("SEMB drive found at port {}", i);
-                } else if dt == AHCI_DEV_PM {
-                    println!("PM drive found at port {}", i)
-                } else {
-                    println!("Drive not found at port {}", i);
                 }
             }
             pi >>= 1;

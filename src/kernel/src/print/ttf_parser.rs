@@ -4,19 +4,14 @@ use core::{
 };
 
 use crate::{
-    graphics::{draw_bezier, draw_line},
-    inline_if, println,
+    graphics::draw_bezier,
+    inline_if,
     utils::{
         buffer_reader::{BufferReader, Endian},
         math::{Polygon, Vector2},
     },
 };
-use alloc::{
-    collections::{btree_map, BTreeMap},
-    string::String,
-    vec,
-    vec::Vec,
-};
+use alloc::{collections::BTreeMap, string::String, vec, vec::Vec};
 
 pub struct TtfParser<'a> {
     reader: BufferReader<'a>,
@@ -141,7 +136,7 @@ impl<'a> TtfParser<'a> {
             let _language_code = self.reader.read_u32(Endian::BigEndian).unwrap();
             let num_groups = self.reader.read_u32(Endian::BigEndian).unwrap();
 
-            for i in 0..num_groups {
+            for _ in 0..num_groups {
                 let start_char_code = self.reader.read_u32(Endian::BigEndian).unwrap();
                 let end_char_code = self.reader.read_u32(Endian::BigEndian).unwrap();
                 let start_glyph_index = self.reader.read_u32(Endian::BigEndian).unwrap();

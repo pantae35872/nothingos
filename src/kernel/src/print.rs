@@ -1,12 +1,10 @@
+use core::fmt;
 use core::fmt::{Arguments, Write};
-use core::{char, fmt, u8};
 
-use crate::serial::SERIAL1;
 use crate::BootInformation;
 use conquer_once::spin::OnceCell;
 use spin::Mutex;
 use x86_64::instructions::interrupts;
-use x86_64::PhysAddr;
 
 use self::ttf_renderer::TtfRenderer;
 
