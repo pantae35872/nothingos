@@ -267,6 +267,14 @@ fn enable_nxe_bit() {
     }
 }
 
+#[cfg(test)]
+#[no_mangle]
+pub extern "C" fn start(boot_info: *mut BootInformation) -> ! {
+    init(boot_info);
+    test_main();
+    hlt_loop();
+}
+
 #[cfg(feature = "test")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]

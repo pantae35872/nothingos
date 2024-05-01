@@ -15,7 +15,7 @@ use crate::memory::paging::Page;
 use crate::memory::Frame;
 use crate::utils::oserror::OSError;
 use crate::utils::VolatileCell;
-use crate::{get_physical, println, EntryFlags, MemoryController};
+use crate::{get_physical, EntryFlags, MemoryController};
 
 use super::Drive;
 

@@ -47,9 +47,11 @@ pub struct Print {
 
 impl Print {
     pub fn new(bootinfo: &mut BootInformation, foreground: u32) -> Self {
-        return Self {
-            renderer: TtfRenderer::new(bootinfo, foreground),
-        };
+        let mut renderer = TtfRenderer::new(bootinfo, foreground);
+        for charactor in "Out of memory".chars() {
+            renderer.cache(&charactor);
+        }
+        return Self { renderer };
     }
 
     pub fn set_color(&mut self, foreground: &u32) {

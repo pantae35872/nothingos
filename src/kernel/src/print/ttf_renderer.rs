@@ -43,15 +43,30 @@ impl TtfRenderer {
         self.update();
     }
 
+    pub fn cache(&mut self, charactor: &char) -> bool {
+        match self.cache.get_mut(&charactor) {
+            Some(_) => {
+                return true;
+            }
+            None => {
+                let mut polygon = self.parser.draw_char(&charactor);
+                polygon.0.scale(0.03);
+                polygon.0.set_y(100.0);
+                self.cache.insert(*charactor, polygon);
+                return false;
+            }
+        };
+    }
+
     pub fn update(&mut self) {
         let mut offset = 1;
         let mut y_offset = 0;
         for charactor in &self.data {
             if *charactor == ' ' {
                 offset += 15;
-                if offset > 1800 {
+                if offset > graphics::DRIVER.get().unwrap().lock().get_res().0 as i32 {
                     y_offset += 1;
-                    offset = 1;
+                    offset = 15;
                 }
                 continue;
             }
@@ -62,27 +77,27 @@ impl TtfRenderer {
                 continue;
             }
 
-            let (polygon, spaceing) = match self.cache.get(&charactor) {
+            let (polygon, spaceing) = match self.cache.get_mut(&charactor) {
                 Some(polygon) => polygon,
                 None => {
                     let mut polygon = self.parser.draw_char(&charactor);
                     polygon.0.scale(0.03);
                     polygon.0.set_y(100.0);
                     self.cache.insert(*charactor, polygon);
-                    self.cache.get(charactor).unwrap()
+                    self.cache.get_mut(charactor).unwrap()
                 }
             };
-            let mut polygon = polygon.clone();
             polygon.move_by((y_offset as f32 * 30.0) - 70.0);
             for pixel in polygon.render() {
                 graphics::DRIVER.get().unwrap().lock().plot(
-                    (pixel.x() + offset) as usize,
+                    (pixel.x() as i32 + offset) as usize,
                     pixel.y() as usize,
                     self.foreground_color,
                 );
             }
+            polygon.move_by(-((y_offset as f32 * 30.0) - 70.0));
             offset += (*spaceing as i32 >> 5) + 0;
-            if offset > 1800 {
+            if offset > graphics::DRIVER.get().unwrap().lock().get_res().0 as i32 {
                 y_offset += 1;
                 offset = 1;
             }

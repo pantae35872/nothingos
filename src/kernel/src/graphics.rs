@@ -36,6 +36,10 @@ impl Graphic {
             PixelFormat::BltOnly => {}
         }
     }
+
+    pub fn get_res(&self) -> (usize, usize) {
+        return self.mode.resolution();
+    }
 }
 
 pub fn init(bootinfo: &BootInformation) {

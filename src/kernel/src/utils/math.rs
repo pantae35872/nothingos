@@ -1,5 +1,4 @@
 use core::{
-    cmp::max,
     f64::consts::PI,
     fmt::Display,
     ops::{Add, Div, Mul, Sub},
@@ -7,10 +6,7 @@ use core::{
 
 use alloc::vec::Vec;
 
-use crate::{
-    graphics::{draw_line, Coordinate},
-    println,
-};
+use crate::graphics::{draw_line, Coordinate};
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct Vector2 {
@@ -140,12 +136,8 @@ impl Polygon {
         Polygon { data }
     }
 
-    pub fn render(&self) -> Vec<Coordinate> {
-        return self
-            .data
-            .iter()
-            .map(|e| Coordinate::new(e.x() as i32, e.y() as i32))
-            .collect();
+    pub fn render(&self) -> &Vec<Vector2> {
+        return &self.data;
     }
 
     pub fn flip(&mut self) {

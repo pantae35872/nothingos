@@ -9,7 +9,7 @@ extern crate nothingos;
 use nothingos::{println, BootInformation};
 
 #[no_mangle]
-pub fn start(multiboot_information_address: *mut BootInformation) -> ! {
+pub extern "C" fn start(multiboot_information_address: *mut BootInformation) -> ! {
     nothingos::init(multiboot_information_address);
     test_main();
     loop {}
