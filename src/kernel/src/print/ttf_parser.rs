@@ -5,7 +5,7 @@ use core::{
 
 use crate::{
     graphics::draw_bezier,
-    inline_if,
+    inline_if, println, serial_println,
     utils::{
         buffer_reader::{BufferReader, Endian},
         math::{Polygon, Vector2},
@@ -213,9 +213,7 @@ impl<'a> TtfParser<'a> {
     }
 
     pub fn draw_char(&mut self, charactor: &char) -> (Polygon, u32) {
-        let mut buffer = [0; 4];
-        charactor.encode_utf8(&mut buffer);
-        if let Some(index) = self.mappings.get(&u32::from_le_bytes(buffer)) {
+        if let Some(index) = self.mappings.get(&(*charactor as u32)) {
             let glyph_index = self.glyph[*index];
             if let Some(glyph) = self.read_glyph(glyph_index.0 as usize) {
                 return (Self::render(&glyph), glyph_index.1);

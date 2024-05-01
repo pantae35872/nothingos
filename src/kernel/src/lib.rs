@@ -245,6 +245,12 @@ pub fn init(information_address: *mut BootInformation) {
     driver::init(&mut memory_controller);
     task::init();
     ACTIVE_TABLE.init_once(|| Mutex::new(active_table));
+    println!(
+        r#"nothingos Copyright (C) 2024  Pantae
+This program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
+This is free software, and you are welcome to redistribute it
+under certain conditions; type `show c' for details."#
+    );
 }
 
 fn enable_write_protect_bit() {
