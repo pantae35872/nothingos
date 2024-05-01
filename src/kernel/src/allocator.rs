@@ -43,7 +43,6 @@ unsafe impl GlobalAlloc for Locked<LinkedListAllocator> {
             }
             alloc_start as *mut u8
         } else {
-            println!("Out of memory");
             ptr::null_mut()
         }
     }

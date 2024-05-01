@@ -270,12 +270,12 @@ impl<'a> TtfParser<'a> {
         let mut data = Vec::new();
         let contours = Self::implied_points(glyph);
 
-        for points in contours {
+        for points in &contours {
             for i in (0..points.len()).step_by(2) {
                 let p0 = points[i];
                 let p1 = points[(i + 1) % points.len()];
                 let p2 = points[(i + 2) % points.len()];
-                draw_bezier(p0, p1, p2, 20, &mut data);
+                draw_bezier(p0, p1, p2, 1, &mut data);
             }
         }
 

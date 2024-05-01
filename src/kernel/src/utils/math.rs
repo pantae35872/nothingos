@@ -180,9 +180,9 @@ impl Polygon {
             .unwrap()
             .y as i32;
 
-        for (c, i) in (miny.max(0)..=maxy).enumerate() {
+        for i in miny.max(0)..=maxy {
             for line in self.data.iter_mut().filter(|e| e.y() as i32 == i) {
-                line.y = location - c as f32;
+                line.y = location - i as f32;
             }
         }
         for (c, i) in (miny.min(0)..0).rev().enumerate() {

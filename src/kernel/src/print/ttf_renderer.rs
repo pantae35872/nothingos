@@ -62,9 +62,11 @@ impl TtfRenderer {
         let mut offset = 1;
         let mut y_offset = 0;
         for charactor in &self.data {
+            let mut graphics = graphics::DRIVER.get().unwrap().lock();
+            let (horizontal, _vertical) = graphics.get_res();
             if *charactor == ' ' {
                 offset += 15;
-                if offset > graphics::DRIVER.get().unwrap().lock().get_res().0 as i32 {
+                if offset > horizontal as i32 {
                     y_offset += 1;
                     offset = 15;
                 }
@@ -89,7 +91,7 @@ impl TtfRenderer {
             };
             polygon.move_by((y_offset as f32 * 30.0) - 70.0);
             for pixel in polygon.render() {
-                graphics::DRIVER.get().unwrap().lock().plot(
+                graphics.plot(
                     (pixel.x() as i32 + offset) as usize,
                     pixel.y() as usize,
                     self.foreground_color,
@@ -97,7 +99,7 @@ impl TtfRenderer {
             }
             polygon.move_by(-((y_offset as f32 * 30.0) - 70.0));
             offset += (*spaceing as i32 >> 5) + 0;
-            if offset > graphics::DRIVER.get().unwrap().lock().get_res().0 as i32 {
+            if offset > horizontal as i32 {
                 y_offset += 1;
                 offset = 1;
             }

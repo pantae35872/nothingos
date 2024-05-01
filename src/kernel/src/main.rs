@@ -28,7 +28,12 @@ pub fn hlt_loop() -> ! {
 #[no_mangle]
 pub extern "C" fn start(information_address: *mut BootInformation) -> ! {
     nothingos::init(information_address);
-    println!("Hello world!");
+    /*println!(
+            r#"<program>  Copyright (C) <year>  <name of author>
+    This program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
+    This is free software, and you are welcome to redistribute it
+    under certain conditions; type `show c' for details."#
+        );*/
     let mut executor = Executor::new();
     executor.spawn(
         async {
