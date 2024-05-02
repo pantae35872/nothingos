@@ -8,7 +8,7 @@ use crate::{
     inline_if, println, serial_println,
     utils::{
         buffer_reader::{BufferReader, Endian},
-        math::{Polygon, Vector2},
+        math::{count_horizontal_intersections, Polygon, Vector2},
     },
 };
 use alloc::{collections::BTreeMap, string::String, vec, vec::Vec};
@@ -266,18 +266,77 @@ impl<'a> TtfParser<'a> {
 
     fn render(glyph: &GlyphData) -> Polygon {
         let mut data = Vec::new();
-        let contours = Self::implied_points(glyph);
+        let contours: Vec<Vec<Vector2>> = Self::implied_points(glyph)
+            .iter_mut()
+            .map(|e| e.iter_mut().map(|x| *x / 32.0).collect())
+            .collect();
 
         for points in &contours {
             for i in (0..points.len()).step_by(2) {
                 let p0 = points[i];
                 let p1 = points[(i + 1) % points.len()];
                 let p2 = points[(i + 2) % points.len()];
-                draw_bezier(p0, p1, p2, 1, &mut data);
+                draw_bezier(p0, p1, p2, 20, &mut data);
+            }
+        }
+
+        let maxy = data
+            .iter()
+            .max_by(|x, y| x.y().partial_cmp(&y.y()).unwrap())
+            .unwrap()
+            .y() as i32;
+        let miny = data
+            .iter()
+            .min_by(|x, y| x.y().partial_cmp(&y.y()).unwrap())
+            .unwrap()
+            .y() as i32;
+
+        let maxx = data
+            .iter()
+            .max_by(|x, y| x.x().partial_cmp(&y.x()).unwrap())
+            .unwrap()
+            .x() as i32;
+        let minx = data
+            .iter()
+            .min_by(|x, y| x.x().partial_cmp(&y.x()).unwrap())
+            .unwrap()
+            .x() as i32;
+        for y in miny + 1..maxy {
+            for x in minx..maxx {
+                let point = Vector2::new(x as f32, y as f32);
+                if Self::is_point_inside_glyph(&point, &contours) {
+                    data.push(point);
+                }
             }
         }
 
         return Polygon::new(data);
+    }
+
+    fn is_point_inside_glyph(point: &Vector2, glyph_contours: &Vec<Vec<Vector2>>) -> bool {
+        let mut intersections = 0;
+
+        for contour in glyph_contours {
+            for points in contour.windows(3).step_by(2) {
+                let p0 = points[0];
+                let p1 = points[1];
+                let p2 = points[2];
+
+                if p0.y() > p2.y() {
+                    if (p0.y() >= 0.0 && p2.y() > 0.0) && (p0.y() <= 0.0 && p2.y() < 0.0) {
+                        continue;
+                    }
+                } else {
+                    if (p0.y() > 0.0 && p2.y() >= 0.0) && (p0.y() < 0.0 && p2.y() <= 0.0) {
+                        continue;
+                    }
+                }
+
+                intersections += count_horizontal_intersections(point, &p0, &p1, &p2);
+            }
+        }
+
+        return (intersections % 2) != 0;
     }
 
     fn get_glyph_spacings(&mut self, num_glyphs: usize) -> Vec<i32> {

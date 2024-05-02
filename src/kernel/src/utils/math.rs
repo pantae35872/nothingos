@@ -6,13 +6,14 @@ use core::{
 
 use alloc::vec::Vec;
 
-use crate::graphics::{draw_line, Coordinate};
+use crate::graphics::{bezier_interpolation, draw_line, Coordinate};
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct Vector2 {
     x: f32,
     y: f32,
 }
+
 impl Vector2 {
     pub fn new(x: f32, y: f32) -> Self {
         Self { x, y }
@@ -38,6 +39,7 @@ impl Vector2 {
         return Coordinate::new(self.x as i32, self.y as i32);
     }
 }
+
 impl Sub for Vector2 {
     type Output = Vector2;
 
@@ -273,6 +275,61 @@ pub fn sqrt_approximate(n: i32) -> i32 {
         y = n / x;
     }
     x
+}
+
+pub fn count_horizontal_intersections(
+    origin: &Vector2,
+    p0: &Vector2,
+    p1: &Vector2,
+    p2: &Vector2,
+) -> i32 {
+    let a = p0.y - 2.0 * p1.y + p2.y;
+    let b = 2.0 * (p1.y - p0.y);
+    let c = p0.y;
+
+    let (t0, t1) = calculate_quadrtic_roots(a, b, c - origin.y);
+
+    fn is_valid_interrsection(
+        t: f32,
+        origin: &Vector2,
+        p0: &Vector2,
+        p1: &Vector2,
+        p2: &Vector2,
+    ) -> bool {
+        let is_on_curve_segment = t >= 0.0 && t < 1.0;
+        let is_to_right_of_ray = bezier_interpolation(*p0, *p1, *p2, t).x > origin.x;
+        return is_on_curve_segment && is_to_right_of_ray;
+    }
+    let mut num = 0;
+    if is_valid_interrsection(t0, origin, p0, p1, p2) {
+        num += 1;
+    }
+    if is_valid_interrsection(t1, origin, p0, p1, p2) {
+        num += 1;
+    }
+
+    return num;
+}
+
+pub fn calculate_quadrtic_roots(a: f32, b: f32, c: f32) -> (f32, f32) {
+    let mut root_a = f32::NAN;
+    let mut root_b = f32::NAN;
+
+    if a == 0.0 {
+        if b != 0.0 {
+            root_a = -c / b;
+        }
+    } else {
+        let discriminant = b * b - 4.0 * a * c;
+
+        if discriminant >= 0.0 {
+            let s = unsafe { core::intrinsics::sqrtf32(discriminant) };
+            root_a = (-b + s) / (2.0 * a);
+            root_b = (-b - s) / (2.0 * a);
+        }
+    }
+
+    return (root_a, root_b);
 }
 
 pub fn round(x: f64) -> i32 {

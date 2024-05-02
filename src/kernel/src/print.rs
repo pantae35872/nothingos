@@ -49,7 +49,7 @@ impl Print {
     pub fn new(bootinfo: &mut BootInformation, foreground: u32) -> Self {
         let mut renderer = TtfRenderer::new(bootinfo, foreground);
         for charactor in "Out of memory".chars() {
-            renderer.cache(&charactor);
+            //renderer.cache(&charactor);
         }
         return Self { renderer };
     }

@@ -28,7 +28,7 @@ pub fn hlt_loop() -> ! {
 #[no_mangle]
 pub extern "C" fn start(information_address: *mut BootInformation) -> ! {
     nothingos::init(information_address);
-    println!("Hello world!á");
+    println!("Hello world!");
     let mut executor = Executor::new();
     executor.spawn(
         async {
@@ -37,8 +37,6 @@ pub extern "C" fn start(information_address: *mut BootInformation) -> ! {
                 .expect("AHCI Driver is not initialize")
                 .lock();
             let drive = controller.get_drive(&0).await.expect("Cannot get drive");
-            let mut data: [u8; 8196] = [0u8; 8196];
-            println!("{:?}", data);
             drive.identify().await.expect("could not identify drive");
             let mut gpt = GPTPartitions::new(drive).await.expect("Error");
             let partition1 = gpt.read_partition(0).await.expect("Error");

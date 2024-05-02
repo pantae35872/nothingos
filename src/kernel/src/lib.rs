@@ -6,6 +6,7 @@
 #![feature(abi_x86_interrupt)]
 #![feature(ptr_internals)]
 #![feature(const_mut_refs)]
+#![feature(core_intrinsics)]
 #![feature(str_from_utf16_endian)]
 #![allow(internal_features)]
 #![allow(dead_code)]

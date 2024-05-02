@@ -5,7 +5,7 @@ use conquer_once::spin::OnceCell;
 use spin::mutex::Mutex;
 use uefi::proto::console::gop::{ModeInfo, PixelFormat};
 
-use crate::{utils::math::Vector2, BootInformation};
+use crate::{inline_if, utils::math::Vector2, BootInformation};
 
 pub static DRIVER: OnceCell<Mutex<Graphic>> = OnceCell::uninit();
 
@@ -86,8 +86,8 @@ pub fn draw_line(start: &Vector2, end: &Vector2, points: &mut Vec<Vector2>) {
 
     let dx = ((end.x() - start.x()) as i32).abs();
     let dy = ((end.y() - start.y()) as i32).abs();
-    let sx = if start.x() < end.x() { 1 } else { -1 };
-    let sy = if start.y() < end.y() { 1 } else { -1 };
+    let sx = inline_if!(start.x() < end.x(), 1, -1);
+    let sy = inline_if!(start.y() < end.y(), 1, -1);
     let mut err = dx - dy;
     let mut x = start.x() as i32;
     let mut y = start.y() as i32;

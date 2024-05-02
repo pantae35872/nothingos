@@ -83,7 +83,6 @@ impl TtfRenderer {
                 Some(polygon) => polygon,
                 None => {
                     let mut polygon = self.parser.draw_char(&charactor);
-                    polygon.0.scale(0.03);
                     polygon.0.set_y(100.0);
                     self.cache.insert(*charactor, polygon);
                     self.cache.get_mut(charactor).unwrap()
