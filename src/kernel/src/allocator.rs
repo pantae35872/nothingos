@@ -3,7 +3,7 @@ use core::{ptr, u8};
 use alloc::alloc::*;
 pub mod linked_list;
 
-use crate::{memory::paging::Page, println, EntryFlags, MemoryController};
+use crate::{memory::paging::Page, EntryFlags, MemoryController};
 
 use self::linked_list::LinkedListAllocator;
 

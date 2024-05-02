@@ -12,12 +12,9 @@ extern crate lazy_static;
 extern crate nothingos;
 extern crate spin;
 
-use alloc::boxed::Box;
-use nothingos::allocator::HEAP_SIZE;
 use nothingos::driver::storage::ahci_driver;
-use nothingos::filesystem::partition::gpt_partition::GPTPartitions;
 use nothingos::task::executor::{AwaitType, Executor};
-use nothingos::{driver, print, println, BootInformation};
+use nothingos::{driver, println, BootInformation};
 
 pub fn hlt_loop() -> ! {
     loop {
@@ -28,7 +25,7 @@ pub fn hlt_loop() -> ! {
 #[no_mangle]
 pub extern "C" fn start(information_address: *mut BootInformation) -> ! {
     nothingos::init(information_address);
-    println!("Hello world!");
+    println!("Hello world!-=+;:*");
     let mut executor = Executor::new();
     executor.spawn(
         async {
@@ -38,8 +35,8 @@ pub extern "C" fn start(information_address: *mut BootInformation) -> ! {
                 .lock();
             let drive = controller.get_drive(&0).await.expect("Cannot get drive");
             drive.identify().await.expect("could not identify drive");
-            let mut gpt = GPTPartitions::new(drive).await.expect("Error");
-            let partition1 = gpt.read_partition(0).await.expect("Error");
+            //let mut gpt = GPTPartitions::new(drive).await.expect("Error");
+            //let partition1 = gpt.read_partition(0).await.expect("Error");
             //println!("{}", partition1.get_partition_name());
         },
         AwaitType::AlwaysPoll,

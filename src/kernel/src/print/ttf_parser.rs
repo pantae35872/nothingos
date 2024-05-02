@@ -5,7 +5,7 @@ use core::{
 
 use crate::{
     graphics::draw_bezier,
-    inline_if, println, serial_println,
+    inline_if,
     utils::{
         buffer_reader::{BufferReader, Endian},
         math::{count_horizontal_intersections, Polygon, Vector2},
