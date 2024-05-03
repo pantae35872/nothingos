@@ -1,3 +1,4 @@
+/os-runner
 src/kernel/target/
 src/kernel/vendor/
 iso/
@@ -18,4 +19,3 @@ filesize.inf
 kernel.bin
 fat.img
 kernel-font.ttf
-os-runner
