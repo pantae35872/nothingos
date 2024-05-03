@@ -6,7 +6,7 @@ tinycore.sh
 disk.img
 msdos.disk
 os.iso
-disk.disk
+disk.img
 src/kernel/Cargo.lock
 src/bootloader/Cargo.lock
 src/bootloader/target/

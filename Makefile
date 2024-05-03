@@ -3,18 +3,21 @@ ifeq (test,$(firstword $(MAKECMDGOALS)))
   $(eval $(RUN_ARGS):;@:)
 endif
 
-.PHONY: debug release clean fat run maker-no-kernel os-runner test-run test
+.PHONY: debug release clean fat run maker-no-kernel os-runner test-run test disk
 
 NAME := nothingos
 
 iso:
 	mkdir -p iso
 
+disk:
+	qemu-img create -f qcow2 disk.img 1G
+
 run: 
-	qemu-system-x86_64 -cdrom os.iso -m 1G -bios OVMF.fd -drive id=disk,file=disk.disk,if=none,format=qcow2 -device ahci,id=ahci -device ide-hd,drive=disk,bus=ahci.0 -boot d -machine kernel_irqchip=split -no-reboot -enable-kvm -cpu host,+rdrand
+	qemu-system-x86_64 -cdrom os.iso -m 1G -bios OVMF.fd -drive id=disk,file=disk.img,if=none,format=qcow2 -device ahci,id=ahci -device ide-hd,drive=disk,bus=ahci.0 -boot d -machine kernel_irqchip=split -no-reboot -enable-kvm -cpu host,+rdrand
 
 test-run:
-	qemu-system-x86_64 -cdrom os.iso -m 1G -bios OVMF.fd -serial stdio -drive id=disk,file=disk.disk,if=none,format=qcow2 -device isa-debug-exit,iobase=0xf4,iosize=0x04 -device ahci,id=ahci -device ide-hd,drive=disk,bus=ahci.0 -boot d -machine kernel_irqchip=split -no-reboot -display none -enable-kvm -cpu host,+rdrand
+	qemu-system-x86_64 -cdrom os.iso -m 1G -bios OVMF.fd -serial stdio -drive id=disk,file=disk.img,if=none,format=qcow2 -device isa-debug-exit,iobase=0xf4,iosize=0x04 -device ahci,id=ahci -device ide-hd,drive=disk,bus=ahci.0 -boot d -machine kernel_irqchip=split -no-reboot -display none -enable-kvm -cpu host,+rdrand
 
 os-runner:
 	@cd src/os-runner && cargo build --release --quiet
@@ -75,3 +78,4 @@ clean:
 	rm -rf fat.img
 	rm -rf os.iso
 	rm -rf os-runner
+	rm -rf disk.img
