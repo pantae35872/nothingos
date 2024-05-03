@@ -3,7 +3,7 @@ ifeq (test,$(firstword $(MAKECMDGOALS)))
   $(eval $(RUN_ARGS):;@:)
 endif
 
-.PHONY: debug release clean fat run maker-no-kernel os-runner test-run test disk
+.PHONY: debug release clean fat run maker-no-kernel os-runner test-run test disk update
 
 NAME := nothingos
 
@@ -22,6 +22,11 @@ test-run:
 os-runner:
 	@cd src/os-runner && cargo build --release --quiet
 	@cp src/os-runner/target/release/os-runner os-runner
+
+update:
+	cd src/bootloader && cargo update
+	cd src/kernel && cargo update 
+	cd src/os-runner && cargo update
 
 maker-no-kernel: fat
 	@cd src/bootloader && cargo build --target x86_64-unknown-uefi && cp target/x86_64-unknown-uefi/debug/$(NAME).efi target/x86_64-unknown-uefi/debug/bootx64.efi
