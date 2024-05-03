@@ -25,7 +25,8 @@ pub fn hlt_loop() -> ! {
 #[no_mangle]
 pub extern "C" fn start(information_address: *mut BootInformation) -> ! {
     nothingos::init(information_address);
-    println!("Hello world!-=+;:*");
+    println!("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890~");
+    println!("Hello world!");
     let mut executor = Executor::new();
     executor.spawn(
         async {

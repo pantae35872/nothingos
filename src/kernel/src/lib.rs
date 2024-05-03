@@ -97,11 +97,7 @@ pub trait Testable {
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     println!("{}", info);
-    #[cfg(feature = "test")]
-    {
-        test_panic_handler(info);
-    }
-    #[cfg(not(feature = "test"))]
+    test_panic_handler(info);
     hlt_loop();
 }
 
@@ -110,32 +106,24 @@ where
     T: Fn(),
 {
     fn run(&self) {
-        #[cfg(feature = "test")]
         serial_print!("{}...\t", core::any::type_name::<T>());
-        #[cfg(feature = "test")]
         self();
-        #[cfg(feature = "test")]
         serial_println!("[ok]");
     }
 }
 
 pub fn test_runner(_tests: &[&dyn Testable]) {
-    #[cfg(feature = "test")]
     serial_println!("Running {} tests", _tests.len());
-    #[cfg(feature = "test")]
     for test in _tests {
         test.run();
     }
-    #[cfg(feature = "test")]
     exit_qemu(QemuExitCode::Success);
 }
 
-#[cfg(feature = "test")]
-pub fn test_panic_handler(info: &PanicInfo) -> ! {
+pub fn test_panic_handler(info: &PanicInfo) {
     serial_println!("[failed]\n");
     serial_println!("Error: {}\n", info);
     exit_qemu(QemuExitCode::Failed);
-    loop {}
 }
 
 pub fn hlt_loop() -> ! {
@@ -282,7 +270,6 @@ pub extern "C" fn start(boot_info: *mut BootInformation) -> ! {
     hlt_loop();
 }
 
-#[cfg(feature = "test")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]
 pub enum QemuExitCode {
@@ -290,7 +277,6 @@ pub enum QemuExitCode {
     Failed = 0x11,
 }
 
-#[cfg(feature = "test")]
 pub fn exit_qemu(exit_code: QemuExitCode) {
     use x86_64::instructions::port::Port;
 

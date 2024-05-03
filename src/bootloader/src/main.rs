@@ -3,6 +3,7 @@
 #![feature(str_from_raw_parts)]
 #![feature(allocator_api)]
 extern crate alloc;
+use crate::toml::TomlValue;
 use alloc::borrow::ToOwned;
 use alloc::vec::Vec;
 use core::arch::asm;
@@ -22,10 +23,7 @@ use uefi::table::boot::OpenProtocolParams;
 use uefi::{
     entry,
     proto::{
-        console::{
-            gop::GraphicsOutput,
-            text::{Color, OutputMode},
-        },
+        console::{gop::GraphicsOutput, text::OutputMode},
         loaded_image::LoadedImage,
         media::{
             file::{File, FileMode},
@@ -36,9 +34,6 @@ use uefi::{
     CStr16, Handle, Status,
 };
 use uefi_raw::protocol::file_system::FileAttribute;
-use uefi_services::println;
-
-use crate::toml::TomlValue;
 
 fn set_output_mode(system_table: &mut SystemTable<Boot>) {
     let mut largest_mode: Option<OutputMode> = None;
@@ -83,14 +78,6 @@ fn main(handle: Handle, mut system_table: SystemTable<Boot>) -> Status {
     uefi_services::init(&mut system_table).unwrap();
 
     set_output_mode(&mut system_table);
-    system_table
-        .stdout()
-        .set_color(Color::LightGreen, Color::Black)
-        .expect("Failed to set Screen color");
-    system_table
-        .stdout()
-        .clear()
-        .expect("Could not clear screen");
     let entrypoint: u64;
     let protocol = match system_table
         .boot_services()
@@ -338,19 +325,6 @@ fn main(handle: Handle, mut system_table: SystemTable<Boot>) -> Status {
 
     drop(protocol);
     drop(scoped_simple_file_system);
-    println!("Press any key to boot.....");
-
-    loop {
-        match system_table.stdin().read_key() {
-            Ok(key) => match key {
-                Some(_) => break,
-                None => {}
-            },
-            Err(err) => {
-                panic!("Failed to read key: {}", err);
-            }
-        }
-    }
 
     let handle = system_table
         .boot_services()

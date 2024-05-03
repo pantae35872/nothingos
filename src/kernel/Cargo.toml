@@ -15,9 +15,6 @@ debug-assertions = false
 [profile.release]
 opt-level = 3 
 
-[features]
-test = []
-
 [dependencies]
 fmt = "0.1.0"
 spin = "0.9.8"

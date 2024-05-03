@@ -21,7 +21,7 @@ impl TtfRenderer {
         };
         parser.parse().unwrap();
         Self {
-            data: Vec::new(),
+            data: Vec::with_capacity(5000),
             cache: BTreeMap::new(),
             parser,
             foreground_color,
@@ -60,9 +60,9 @@ impl TtfRenderer {
     pub fn update(&mut self) {
         let mut offset = 1;
         let mut y_offset = 0;
+        let mut graphics = graphics::DRIVER.get().unwrap().lock();
+        let (horizontal, _vertical) = graphics.get_res();
         for charactor in &self.data {
-            let mut graphics = graphics::DRIVER.get().unwrap().lock();
-            let (horizontal, _vertical) = graphics.get_res();
             if *charactor == ' ' {
                 offset += 15;
                 if offset > horizontal as i32 {
@@ -99,7 +99,7 @@ impl TtfRenderer {
             offset += (*spaceing as i32 >> 5) + 0;
             if offset > horizontal as i32 {
                 y_offset += 1;
-                offset = 15;
+                offset = 0;
             }
         }
     }

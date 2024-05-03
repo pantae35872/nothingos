@@ -48,7 +48,7 @@ pub struct Print {
 impl Print {
     pub fn new(bootinfo: &mut BootInformation, foreground: u32) -> Self {
         let mut renderer = TtfRenderer::new(bootinfo, foreground);
-        for charactor in "Out of memory".chars() {
+        for charactor in "Out of heap memory".chars() {
             renderer.cache(&charactor);
         }
         return Self { renderer };

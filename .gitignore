@@ -9,6 +9,9 @@ disk.disk
 src/kernel/Cargo.lock
 src/bootloader/Cargo.lock
 src/bootloader/target/
+src/os-runner/Cargo.lock
+src/os-runner/target/
+os-runner
 bfg-1.14.0.jar
 Core-current.iso
 OVMF.fd
