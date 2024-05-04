@@ -1,7 +1,4 @@
-use core::task::Poll;
-
 use alloc::boxed::Box;
-use futures_util::Future;
 
 use crate::utils::oserror::OSError;
 use crate::utils::port::{Port16Bit, Port8Bit};
@@ -42,7 +39,7 @@ impl ATADrive {
         }
     }
 
-    pub async fn identify(&mut self) {
+    pub fn identify(&mut self) {
         self.device_port.write(&inline_if!(self.master, 0xA0, 0xB0));
 
         self.control_port.write(&0);
@@ -68,8 +65,12 @@ impl ATADrive {
         if status == 0 {
             return;
         }
-
-        DriveAsync::new(&self.command_port).await;
+        loop {
+            status = self.command_port.read();
+            if !(((status & 0x80) == 0x80) && ((status & 0x01) != 0x01)) {
+                break;
+            }
+        }
 
         status = self.command_port.read();
 
@@ -99,12 +100,7 @@ impl ATADrive {
         self.lba_end = ((lba_end_high << 16) | lba_end_low) - 1;
     }
 
-    async fn write_once(
-        &mut self,
-        sector: u64,
-        data: &[u8],
-        count: usize,
-    ) -> Result<(), Box<OSError>> {
+    fn write_once(&mut self, sector: u64, data: &[u8], count: usize) -> Result<(), Box<OSError>> {
         if (sector & 0xF0000000) != 0 || count > self.bytes_per_sector {
             return Err(Box::new(OSError::new("Drive error")));
         }
@@ -133,11 +129,11 @@ impl ATADrive {
         for _i in ((count + (count % 2))..self.bytes_per_sector).step_by(2) {
             self.data_port.write(&0x0000);
         }
-        self.flush().await?;
+        self.flush()?;
         return Ok(());
     }
 
-    async fn read_once(
+    fn read_once(
         &mut self,
         sector: u64,
         data: &mut [u8],
@@ -159,9 +155,14 @@ impl ATADrive {
             .write(&(((sector & 0x00FF0000) >> 16) as u8));
         self.command_port.write(&0x20);
 
-        DriveAsync::new(&self.command_port).await;
-
-        let status = self.command_port.read();
+        let mut status;
+        loop {
+            status = self.command_port.read();
+            if !(((status & 0x80) == 0x80) && ((status & 0x01) != 0x01)) {
+                break;
+            }
+        }
+        status = self.command_port.read();
 
         if (status & 0x01) != 0 {
             return Err(Box::new(OSError::new("Drive error")));
@@ -182,13 +183,18 @@ impl ATADrive {
         return Ok(());
     }
 
-    pub async fn flush(&mut self) -> Result<(), Box<OSError>> {
+    pub fn flush(&mut self) -> Result<(), Box<OSError>> {
         self.device_port.write(&inline_if!(self.master, 0xE0, 0xF0));
         self.command_port.write(&0xE7);
+        let mut status;
+        loop {
+            status = self.command_port.read();
+            if !(((status & 0x80) == 0x80) && ((status & 0x01) != 0x01)) {
+                break;
+            }
+        }
 
-        DriveAsync::new(&self.command_port).await;
-
-        let status = self.command_port.read();
+        status = self.command_port.read();
 
         if (status & 0x01) != 0 {
             return Err(Box::new(OSError::new("Drive error")));
@@ -197,52 +203,23 @@ impl ATADrive {
     }
 }
 
-struct DriveAsync<'a> {
-    command_port: &'a Port8Bit,
-}
-
-impl<'a> DriveAsync<'a> {
-    pub fn new(command_port: &'a Port8Bit) -> Self {
-        Self { command_port }
-    }
-}
-
-impl<'a> Future for DriveAsync<'a> {
-    type Output = ();
-
-    fn poll(self: core::pin::Pin<&mut Self>, _cx: &mut core::task::Context<'_>) -> Poll<()> {
-        let status = self.command_port.read();
-        if ((status & 0x80) == 0x80) && ((status & 0x01) != 0x01) {
-            return Poll::Pending;
-        } else {
-            return Poll::Ready(());
-        }
-    }
-}
-
 impl Drive for ATADrive {
     fn lba_end(&self) -> u64 {
         self.lba_end
     }
 
-    async fn write(
-        &mut self,
-        from_sector: u64,
-        buffer: &[u8],
-        count: usize,
-    ) -> Result<(), Box<OSError>> {
+    fn write(&mut self, from_sector: u64, buffer: &[u8], count: usize) -> Result<(), Box<OSError>> {
         for i in 0..count {
             self.write_once(
                 from_sector + i as u64,
                 &buffer[(512 * i)..(512 * (i + 1))],
                 512,
-            )
-            .await?;
+            )?;
         }
         return Ok(());
     }
 
-    async fn read(
+    fn read(
         &mut self,
         from_sector: u64,
         buffer: &mut [u8],
@@ -253,8 +230,7 @@ impl Drive for ATADrive {
                 from_sector + i as u64,
                 &mut buffer[(512 * i)..(512 * (i + 1))],
                 512,
-            )
-            .await?;
+            )?;
         }
         return Ok(());
     }

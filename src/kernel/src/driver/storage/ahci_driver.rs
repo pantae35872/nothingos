@@ -12,10 +12,10 @@ use x86_64::{PhysAddr, VirtAddr};
 
 use crate::driver::pci;
 use crate::memory::paging::Page;
-use crate::memory::Frame;
+use crate::memory::{AreaFrameAllocator, Frame};
 use crate::utils::oserror::OSError;
 use crate::utils::VolatileCell;
-use crate::{get_physical, EntryFlags, MemoryController};
+use crate::{get_physical, println, EntryFlags, ACTIVE_TABLE};
 
 use super::Drive;
 
@@ -334,7 +334,7 @@ impl AhciPort {
         }
     }
 
-    fn rebase(&mut self, memory_controller: &mut MemoryController) {
+    fn rebase(&mut self) {
         self.stop_cmd();
         let port = self.hba_port();
         let virt_clb: VirtAddr = unsafe {
@@ -344,16 +344,14 @@ impl AhciPort {
         unsafe {
             write_bytes(virt_clb.as_mut_ptr::<u8>(), 0, 1024);
         }
-        port.clb
-            .set(memory_controller.get_physical(virt_clb).unwrap());
+        port.clb.set(get_physical(virt_clb).unwrap());
         let virt_fb: VirtAddr = unsafe {
             VirtAddr::new(alloc(Layout::from_size_align(4096, align_of::<u8>()).unwrap()) as u64)
         };
         unsafe {
             write_bytes(virt_fb.as_mut_ptr::<u8>(), 0, 1024);
         }
-        port.fb
-            .set(memory_controller.get_physical(virt_clb).unwrap());
+        port.fb.set(get_physical(virt_clb).unwrap());
         self.fb = virt_fb;
         self.clb = virt_clb;
         let port = self.hba_port();
@@ -373,9 +371,7 @@ impl AhciPort {
                 ptr::write_bytes(virt_ctba.as_mut_ptr::<u8>(), 0, 4096);
             }
             self.ctba[i] = virt_ctba;
-            cmdheader[i]
-                .ctba
-                .set(memory_controller.get_physical(virt_ctba).unwrap());
+            cmdheader[i].ctba.set(get_physical(virt_ctba).unwrap());
         }
         self.start_cmd();
         let port = self.hba_port();
@@ -424,7 +420,7 @@ impl AhciDrive {
         }
     }
 
-    async fn run_command(
+    fn run_command(
         &mut self,
         lba: u64,
         count: usize,
@@ -500,11 +496,9 @@ impl AhciDrive {
         return Ok(());
     }
 
-    pub async fn identify(
-        &mut self,
-    ) -> Result<(), alloc::boxed::Box<crate::utils::oserror::OSError>> {
+    pub fn identify(&mut self) -> Result<(), alloc::boxed::Box<crate::utils::oserror::OSError>> {
         let buf = [0u8; 512];
-        self.run_command(0, 1, &buf, 0xEC).await?;
+        self.run_command(0, 1, &buf, 0xEC)?;
         self.identifier = Some(buf);
         Ok(())
     }
@@ -513,37 +507,38 @@ impl AhciDrive {
 impl Drive for AhciDrive {
     fn lba_end(&self) -> u64 {
         if let Some(identifier) = self.identifier {
+            println!("{:#01x?}", identifier);
             return u64::from_le_bytes([
+                0,
+                0,
+                0,
+                0,
                 identifier[100],
                 identifier[101],
                 identifier[102],
                 identifier[103],
-                0,
-                0,
-                0,
-                0,
             ]) - 1;
         } else {
             panic!("Please identify the drive before accessing it");
         }
     }
 
-    async fn read(
+    fn read(
         &mut self,
         from_sector: u64,
         buffer: &mut [u8],
         count: usize,
     ) -> Result<(), alloc::boxed::Box<crate::utils::oserror::OSError>> {
-        return self.run_command(from_sector, count, buffer, 0x25).await;
+        return self.run_command(from_sector, count, buffer, 0x25);
     }
 
-    async fn write(
+    fn write(
         &mut self,
         from_sector: u64,
         buffer: &[u8],
         count: usize,
     ) -> Result<(), alloc::boxed::Box<crate::utils::oserror::OSError>> {
-        return self.run_command(from_sector, count, buffer, 0x35).await;
+        return self.run_command(from_sector, count, buffer, 0x35);
     }
 }
 
@@ -552,7 +547,7 @@ impl AhciController {
         Self { drives: Vec::new() }
     }
 
-    pub fn probe_port(&mut self, memory_controller: &mut MemoryController) {
+    pub fn probe_port(&mut self) {
         let abar = unsafe { &mut *((ABAR_START as *mut u8) as *mut HbaMem) };
         let mut pi = abar.pi.get();
         if abar.bohc.get() & 2 == 0 {
@@ -570,12 +565,13 @@ impl AhciController {
         for i in 0..32 {
             let port_address =
                 VirtAddr::new((ABAR_START as u64) + 0x100 + (i * size_of::<HbaPort>()) as u64);
-            let drive = AhciDrive::new(port_address, abar.cap.get() as usize);
+            let mut drive = AhciDrive::new(port_address, abar.cap.get() as usize);
             if (pi & 1) != 0 {
                 let dt = drive.port.lock().check_type();
 
                 if dt == AHCI_DEV_SATA {
-                    drive.port.lock().rebase(memory_controller);
+                    drive.port.lock().rebase();
+                    drive.identify().expect("identify drive failed");
                     self.drives.push(drive);
                 }
             }
@@ -583,7 +579,7 @@ impl AhciController {
         }
     }
 
-    pub async fn get_drive(&mut self, index: &usize) -> Result<&mut AhciDrive, Box<OSError>> {
+    pub fn get_drive(&mut self, index: &usize) -> Result<&mut AhciDrive, Box<OSError>> {
         if let Some(drive) = self.drives.get_mut(*index) {
             Ok(drive)
         } else {
@@ -614,7 +610,7 @@ impl AhciController {
     }
 }
 
-pub fn init(memory_controller: &mut MemoryController) {
+pub fn init(area_frame_allocator: &mut AreaFrameAllocator) {
     let abar_start_page = Page::containing_address(ABAR_START);
     let abar_end_page = Page::containing_address(ABAR_START + ABAR_SIZE);
     let abar_address = AhciController::get_ahci_address();
@@ -625,19 +621,23 @@ pub fn init(memory_controller: &mut MemoryController) {
                 Frame::containing_address(abar_address as usize + ABAR_SIZE),
             ))
         {
-            memory_controller.active_table.map_to(
-                page,
-                frame,
-                EntryFlags::PRESENT
-                    | EntryFlags::NO_CACHE
-                    | EntryFlags::WRITABLE
-                    | EntryFlags::WRITE_THROUGH,
-                &mut memory_controller.frame_allocator,
-            );
+            ACTIVE_TABLE
+                .get()
+                .expect("incorrect order of initializeation from ahci")
+                .lock()
+                .map_to(
+                    page,
+                    frame,
+                    EntryFlags::PRESENT
+                        | EntryFlags::NO_CACHE
+                        | EntryFlags::WRITABLE
+                        | EntryFlags::WRITE_THROUGH,
+                    area_frame_allocator,
+                );
         }
         DRIVER.init_once(|| {
             let mut controller = AhciController::new();
-            controller.probe_port(memory_controller);
+            controller.probe_port();
             Mutex::from(controller)
         });
     }

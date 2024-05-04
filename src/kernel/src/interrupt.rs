@@ -1,6 +1,5 @@
 use core::arch::asm;
 
-use crate::driver;
 use crate::gdt;
 use crate::hlt_loop;
 use crate::memory::paging::Page;
@@ -108,7 +107,7 @@ pub fn init(memory_controller: &mut MemoryController) {
                 | EntryFlags::NO_CACHE
                 | EntryFlags::WRITABLE
                 | EntryFlags::WRITE_THROUGH,
-            &mut memory_controller.frame_allocator,
+            memory_controller.frame_allocator,
         );
     }
     LAPICS.init_once(|| {
@@ -213,7 +212,6 @@ extern "x86-interrupt" fn double_fault_handler(
 }
 
 extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
-    driver::timer::tick();
     unsafe {
         LAPICS.get().unwrap().lock().end_of_interrupt();
     }

@@ -12,43 +12,47 @@ extern crate lazy_static;
 extern crate nothingos;
 extern crate spin;
 
+use alloc::vec;
+use alloc::vec::Vec;
 use nothingos::driver::storage::{ahci_driver, Drive};
-use nothingos::task::executor::{AwaitType, Executor};
-use nothingos::{driver, println, BootInformation};
-
-pub fn hlt_loop() -> ! {
-    loop {
-        x86_64::instructions::hlt();
-    }
-}
+use nothingos::filesystem::partition::gpt_partition::GPTPartitions;
+use nothingos::{hlt_loop, println, BootInformation};
+use uguid::guid;
 
 #[no_mangle]
 pub extern "C" fn start(information_address: *mut BootInformation) -> ! {
     nothingos::init(information_address);
-    println!("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890~");
     println!("Hello world!!!!");
-    let mut executor = Executor::new();
-    executor.spawn(
-        async {
-            let mut controller = ahci_driver::DRIVER
-                .get()
-                .expect("AHCI Driver is not initialize")
-                .lock();
-            let drive = controller.get_drive(&0).await.expect("Cannot get drive");
-            drive.identify().await.expect("could not identify drive");
-            println!("{}", drive.lba_end());
-            //let mut gpt = GPTPartitions::new(drive).await.expect("Error");
-            //let partition1 = gpt.read_partition(0).await.expect("Error");
-            //println!("{}", partition1.get_partition_name());
+    let mut controller = ahci_driver::DRIVER
+        .get()
+        .expect("AHCI Driver is not initialize")
+        .lock();
+    let drive = controller.get_drive(&0).expect("Cannot get drive");
+    println!("lba end {}", drive.lba_end());
+    let mut gpt = GPTPartitions::new(drive).expect("Error");
+    gpt.format().unwrap();
+    gpt.set_partiton(
+        1,
+        &guid!("0FC63DAF-8483-4772-8E79-3D69D8477DE4"),
+        34,
+        2048,
+        0,
+        &{
+            let mut array = [0; 72];
+            let string: Vec<u8> = "My partition"
+                .encode_utf16()
+                .flat_map(|c| vec![(c & 0xFF) as u8, (c >> 8) as u8])
+                .collect();
+            array[..string.len()].copy_from_slice(string.as_slice());
+            array
         },
-        AwaitType::AlwaysPoll,
-    );
-
-    executor.spawn(driver::timer::timer_task(), AwaitType::WakePoll);
-    executor.spawn(driver::keyboard::keyboard_task(), AwaitType::WakePoll);
+    )
+    .unwrap();
+    let partition1 = gpt.read_partition(1).expect("Error");
+    println!("{}", partition1.get_partition_name());
 
     #[cfg(test)]
     test_main();
 
-    executor.run();
+    hlt_loop();
 }

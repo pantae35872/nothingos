@@ -64,7 +64,7 @@ pub fn init(memory_controller: &mut MemoryController) {
         memory_controller.active_table.map(
             page,
             EntryFlags::WRITABLE,
-            &mut memory_controller.frame_allocator,
+            memory_controller.frame_allocator,
         );
     }
     unsafe {

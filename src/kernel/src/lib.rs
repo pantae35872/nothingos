@@ -68,7 +68,6 @@ pub mod interrupt;
 pub mod memory;
 pub mod print;
 pub mod serial;
-pub mod task;
 pub mod utils;
 
 use core::fmt::Display;
@@ -179,18 +178,14 @@ pub struct BootInformation {
 }
 pub struct MemoryController<'area_frame_allocator, 'active_table> {
     active_table: &'active_table mut ActivePageTable,
-    frame_allocator: AreaFrameAllocator<'area_frame_allocator>,
+    frame_allocator: &'area_frame_allocator mut AreaFrameAllocator<'static>,
     stack_allocator: StackAllocator,
 }
 
 impl<'area_frame_allocator, 'active_table> MemoryController<'area_frame_allocator, 'active_table> {
     pub fn alloc_stack(&mut self, size_in_pages: usize) -> Option<Stack> {
-        let &mut MemoryController {
-            ref mut active_table,
-            ref mut frame_allocator,
-            ref mut stack_allocator,
-        } = self;
-        stack_allocator.alloc_stack(active_table, frame_allocator, size_in_pages)
+        self.stack_allocator
+            .alloc_stack(self.active_table, self.frame_allocator, size_in_pages)
     }
 
     pub fn get_physical(&mut self, addr: VirtAddr) -> Option<PhysAddr> {
@@ -222,7 +217,7 @@ pub fn init(information_address: *mut BootInformation) {
     };
     let mut memory_controller = MemoryController {
         active_table: &mut active_table,
-        frame_allocator,
+        frame_allocator: &mut frame_allocator,
         stack_allocator,
     };
     allocator::init(&mut memory_controller);
@@ -231,9 +226,9 @@ pub fn init(information_address: *mut BootInformation) {
     gdt::init_gdt(&mut memory_controller);
     interrupt::init(&mut memory_controller);
     x86_64::instructions::interrupts::enable();
-    driver::init(&mut memory_controller);
-    task::init();
+    drop(memory_controller);
     ACTIVE_TABLE.init_once(|| Mutex::new(active_table));
+    driver::init(&mut frame_allocator);
     /*println!(
             r#"nothingos Copyright (C) 2024  Pantae
     This program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.

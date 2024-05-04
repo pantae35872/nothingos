@@ -1,13 +1,13 @@
 pub mod ahci_driver;
 pub mod ata_driver;
 
-use core::{f64, future};
+use core::f64;
 
 use alloc::boxed::Box;
 
+use crate::memory::AreaFrameAllocator;
 use crate::utils::floorf64;
 use crate::utils::oserror::OSError;
-use crate::MemoryController;
 
 pub const MAXSCT: f64 = 63.0;
 pub const MAXHD: f64 = 255.0;
@@ -83,23 +83,14 @@ impl CHS {
 }
 
 pub trait Drive {
-    fn write(
-        &mut self,
-        from_sector: u64,
-        data: &[u8],
-        count: usize,
-    ) -> impl future::Future<Output = Result<(), Box<OSError>>> + Send;
+    fn write(&mut self, from_sector: u64, data: &[u8], count: usize) -> Result<(), Box<OSError>>;
 
-    fn read(
-        &mut self,
-        from_sector: u64,
-        data: &mut [u8],
-        count: usize,
-    ) -> impl future::Future<Output = Result<(), Box<OSError>>> + Send;
+    fn read(&mut self, from_sector: u64, data: &mut [u8], count: usize)
+        -> Result<(), Box<OSError>>;
 
     fn lba_end(&self) -> u64;
 }
 
-pub fn init(frame_allocator: &mut MemoryController) {
+pub fn init(frame_allocator: &mut AreaFrameAllocator) {
     ahci_driver::init(frame_allocator);
 }
