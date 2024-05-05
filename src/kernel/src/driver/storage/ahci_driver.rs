@@ -15,7 +15,7 @@ use crate::memory::paging::Page;
 use crate::memory::{AreaFrameAllocator, Frame};
 use crate::utils::oserror::OSError;
 use crate::utils::VolatileCell;
-use crate::{get_physical, println, EntryFlags, ACTIVE_TABLE};
+use crate::{get_physical, inline_if, println, serial_println, EntryFlags, ACTIVE_TABLE};
 
 use super::Drive;
 
@@ -434,7 +434,6 @@ impl AhciDrive {
         cmd_header.set_cfl(&((size_of::<FisRegH2D>() / size_of::<u32>()) as u8));
         cmd_header.set_w(&false);
         cmd_header.prdtl.set((((count - 1) >> 4) + 1) as u16);
-
         let cmdtbl = port.cmd_tbl();
         let mut buf_address = get_physical(VirtAddr::new(buffer.as_ptr() as u64)).unwrap();
         let mut i: usize = 0;
@@ -442,7 +441,7 @@ impl AhciDrive {
             cmdtbl.get_prdt_entry(i).dba.set(buf_address);
             cmdtbl.get_prdt_entry(i).set_dbc(&(8 * 1024 - 1));
             cmdtbl.get_prdt_entry(i).set_i(&true);
-            buf_address += (4 * 4024) as u64;
+            buf_address += (4 * 1024) as u64;
             count -= 16;
             i += 1;
         }
@@ -450,8 +449,8 @@ impl AhciDrive {
         cmdtbl.get_prdt_entry(i).dba.set(buf_address);
         cmdtbl
             .get_prdt_entry(i)
-            .set_dbc(&(((count << 9) - 1) as u32));
-        cmdtbl.get_prdt_entry(i).set_i(&true);
+            .set_dbc(&(8 * 1024 - 1) /*&((count << 9) as u32)*/);
+        cmdtbl.get_prdt_entry(i).set_i(&false);
 
         let cmdfis = unsafe { &mut *(cmdtbl.cfis.as_mut_ptr() as *mut FisRegH2D) };
         cmdfis.fis_type.set(FIS_TYPE_REG_H2D);
@@ -460,6 +459,7 @@ impl AhciDrive {
 
         let lower = lba & 0xFFFFFFFF;
         let upper = (lba & 0xFFFFFFFF00000000) >> 32;
+        serial_println!("Upper: {}, Lower: {}", upper, lower);
         cmdfis.lba0.set(lower as u8);
         cmdfis.lba1.set((lower >> 8) as u8);
         cmdfis.lba2.set((lower >> 16) as u8);
@@ -469,7 +469,7 @@ impl AhciDrive {
         cmdfis.lba5.set((upper >> 8) as u8);
 
         cmdfis.countl.set((count & 0xFF) as u8);
-        cmdfis.counth.set(((count >> 8) & 0xFF) as u8);
+        cmdfis.counth.set((count >> 8) as u8);
 
         loop {
             if port.hba_port().tfd.get() & (0x80 | 0x08) != 0 {
@@ -507,17 +507,7 @@ impl AhciDrive {
 impl Drive for AhciDrive {
     fn lba_end(&self) -> u64 {
         if let Some(identifier) = self.identifier {
-            println!("{:#01x?}", identifier);
-            return u64::from_le_bytes([
-                0,
-                0,
-                0,
-                0,
-                identifier[100],
-                identifier[101],
-                identifier[102],
-                identifier[103],
-            ]) - 1;
+            return (u32::from_le_bytes(identifier[200..204].try_into().unwrap()) - 1).into();
         } else {
             panic!("Please identify the drive before accessing it");
         }

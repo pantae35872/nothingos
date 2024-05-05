@@ -302,12 +302,6 @@ impl<'a, T: Drive> GPTPartitions<'a, T> {
         self.drive
             .write(start_lba, entries_bytes, self.sector_number_entries)?;
 
-        println!(
-            "{}, {}, {}",
-            self.drive.lba_end(),
-            size_of::<PartitionTableHeader>() / 512,
-            header_bytes.len()
-        );
         self.drive.write(
             self.drive.lba_end(),
             header_bytes,

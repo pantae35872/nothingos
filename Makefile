@@ -78,7 +78,6 @@ clean:
 	cd src/kernel && cargo clean
 	cd src/os-runner && cargo clean
 	rm -rf iso
-	rm -rf filesize.inf
 	rm -rf kernel.bin
 	rm -rf fat.img
 	rm -rf os.iso

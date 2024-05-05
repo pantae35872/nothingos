@@ -28,7 +28,6 @@ pub extern "C" fn start(information_address: *mut BootInformation) -> ! {
         .expect("AHCI Driver is not initialize")
         .lock();
     let drive = controller.get_drive(&0).expect("Cannot get drive");
-    println!("lba end {}", drive.lba_end());
     let mut gpt = GPTPartitions::new(drive).expect("Error");
     gpt.format().unwrap();
     gpt.set_partiton(
