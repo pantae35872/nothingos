@@ -15,7 +15,7 @@ use crate::memory::paging::Page;
 use crate::memory::{AreaFrameAllocator, Frame};
 use crate::utils::oserror::OSError;
 use crate::utils::VolatileCell;
-use crate::{get_physical, inline_if, println, serial_println, EntryFlags, ACTIVE_TABLE};
+use crate::{get_physical, EntryFlags, ACTIVE_TABLE};
 
 use super::Drive;
 
@@ -206,21 +206,19 @@ pub struct HbaPRDTEntry {
 impl HbaPRDTEntry {
     pub fn set_i(&mut self, value: &bool) {
         if *value {
-            self.dw3.set(self.dw3.get() | (1 << 31));
+            self.dw3.set(self.dw3.get() | 1);
         } else {
-            self.dw3.set(self.dw3.get() & !(1 << 31));
+            self.dw3.set(self.dw3.get() & 0);
         }
     }
 
     pub fn set_dbc(&mut self, value: &u32) {
-        if *value > 0b00000000001111111111111111111111 {
-            return;
-        }
-
+        //if *value > 0b00000000001111111111111111111111 {
+        //    return;
+        //}
         self.dw3
-            .set(self.dw3.get() & !(0b00000000001111111111111111111111));
-        self.dw3
-            .set(self.dw3.get() | (*value & 0b00000000001111111111111111111111));
+            .set(self.dw3.get() & !(0b11111111111111111111110000000000));
+        self.dw3.set(self.dw3.get() | (*value << 10));
     }
 }
 
@@ -423,11 +421,11 @@ impl AhciDrive {
     fn run_command(
         &mut self,
         lba: u64,
-        count: usize,
+        original_count: usize,
         buffer: &[u8],
         command: u8,
     ) -> Result<(), alloc::boxed::Box<crate::utils::oserror::OSError>> {
-        let mut count = count;
+        let mut count = original_count;
         let port = self.port.lock();
         port.hba_port().is.set(u32::MAX);
         let cmd_header = port.cmd_header();
@@ -447,10 +445,8 @@ impl AhciDrive {
         }
 
         cmdtbl.get_prdt_entry(i).dba.set(buf_address);
-        cmdtbl
-            .get_prdt_entry(i)
-            .set_dbc(&(8 * 1024 - 1) /*&((count << 9) as u32)*/);
-        cmdtbl.get_prdt_entry(i).set_i(&false);
+        cmdtbl.get_prdt_entry(i).set_dbc(&((count << 9) as u32 - 1));
+        cmdtbl.get_prdt_entry(i).set_i(&true);
 
         let cmdfis = unsafe { &mut *(cmdtbl.cfis.as_mut_ptr() as *mut FisRegH2D) };
         cmdfis.fis_type.set(FIS_TYPE_REG_H2D);
@@ -459,7 +455,6 @@ impl AhciDrive {
 
         let lower = lba & 0xFFFFFFFF;
         let upper = (lba & 0xFFFFFFFF00000000) >> 32;
-        serial_println!("Upper: {}, Lower: {}", upper, lower);
         cmdfis.lba0.set(lower as u8);
         cmdfis.lba1.set((lower >> 8) as u8);
         cmdfis.lba2.set((lower >> 16) as u8);
@@ -468,8 +463,8 @@ impl AhciDrive {
         cmdfis.lba4.set(upper as u8);
         cmdfis.lba5.set((upper >> 8) as u8);
 
-        cmdfis.countl.set((count & 0xFF) as u8);
-        cmdfis.counth.set((count >> 8) as u8);
+        cmdfis.countl.set((original_count & 0xFF) as u8);
+        cmdfis.counth.set((original_count >> 8) as u8);
 
         loop {
             if port.hba_port().tfd.get() & (0x80 | 0x08) != 0 {

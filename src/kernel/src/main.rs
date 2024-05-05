@@ -14,7 +14,7 @@ extern crate spin;
 
 use alloc::vec;
 use alloc::vec::Vec;
-use nothingos::driver::storage::{ahci_driver, Drive};
+use nothingos::driver::storage::ahci_driver;
 use nothingos::filesystem::partition::gpt_partition::GPTPartitions;
 use nothingos::{hlt_loop, println, BootInformation};
 use uguid::guid;
