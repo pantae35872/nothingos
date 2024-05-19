@@ -15,6 +15,7 @@ use x2apic::lapic::LocalApic;
 use x2apic::lapic::LocalApicBuilder;
 use x86_64::structures::idt::PageFaultErrorCode;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
+use x86_64::VirtAddr;
 
 lazy_static! {
     static ref IDT: InterruptDescriptorTable = {
@@ -59,7 +60,9 @@ lazy_static! {
         idt[InterruptIndex::PrimaryATA.as_usize()].set_handler_fn(primary_ata_interrupt_handler);
         idt[InterruptIndex::SecondaryATA.as_usize()]
             .set_handler_fn(secondary_ata_interrupt_handler);
-        idt[0x80].set_handler_fn(syscall);
+        unsafe {
+            idt[0x80].set_handler_addr(VirtAddr::new(syscall as u64));
+        }
         idt
     };
 }
@@ -232,10 +235,61 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
     }*/
 }
 
-extern "x86-interrupt" fn syscall(_stack_frame: InterruptStackFrame) {
-    let rax: u32;
-    unsafe { asm!("mov {:r}, rax", out(reg) rax) };
-    println!("System call, Rax: {}", rax);
+#[naked]
+#[no_mangle]
+fn syscall() {
+    unsafe {
+        asm!(
+            r#"
+        push r11
+        push r10
+        push r9
+        push r8
+        push rdi
+        push rsi
+        push rdx
+        push rcx
+        push rax
+        
+        mov rdi, rsp
+        call inner_syscall
+        pop rax
+        pop rcx
+        pop rdx
+        pop rsi
+        pop rdi
+        pop r8
+        pop r9
+        pop r10
+        pop r11
+        iretq
+        "#,
+            options(noreturn)
+        );
+    }
+}
+
+#[derive(Debug)]
+#[repr(C)]
+struct FullInterruptStackFrame {
+    pub rax: u64,
+    pub rcx: u64,
+    pub rdx: u64,
+    pub rsi: u64,
+    pub rdi: u64,
+    pub r8: u64,
+    pub r9: u64,
+    pub r10: u64,
+    pub r11: u64,
+    pub instruction_pointer: VirtAddr,
+    pub code_segment: u64,
+    pub cpu_flags: u64,
+    pub stack_pointer: VirtAddr,
+    pub stack_segment: u64,
+}
+#[no_mangle]
+extern "C" fn inner_syscall(stack_frame: &mut FullInterruptStackFrame) {
+    println!("{:?}", stack_frame);
 }
 
 extern "x86-interrupt" fn primary_ata_interrupt_handler(_stack_frame: InterruptStackFrame) {

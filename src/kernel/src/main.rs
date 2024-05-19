@@ -12,6 +12,8 @@ extern crate lazy_static;
 extern crate nothingos;
 extern crate spin;
 
+use core::arch::asm;
+
 use alloc::vec;
 use alloc::vec::Vec;
 use nothingos::driver::storage::ahci_driver;
@@ -22,7 +24,14 @@ use uguid::guid;
 #[no_mangle]
 pub extern "C" fn start(information_address: *mut BootInformation) -> ! {
     nothingos::init(information_address);
-    println!("Hello world!!!!");
+    println!("Hello worldaaa!!!!");
+    unsafe {
+        println!("aaa");
+        asm!("int 0x80", in("rax") 42);
+        let rax: u32;
+        asm!("mov {:r}, rax", out(reg) rax);
+        println!("Rax: {}", rax);
+    }
     let mut controller = ahci_driver::DRIVER
         .get()
         .expect("AHCI Driver is not initialize")

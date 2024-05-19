@@ -8,7 +8,9 @@
 #![feature(const_mut_refs)]
 #![feature(core_intrinsics)]
 #![feature(str_from_utf16_endian)]
+#![feature(naked_functions)]
 #![allow(internal_features)]
+#![allow(undefined_naked_function_abi)]
 #![allow(dead_code)]
 #[macro_use]
 extern crate bitflags;
@@ -229,12 +231,12 @@ pub fn init(information_address: *mut BootInformation) {
     drop(memory_controller);
     ACTIVE_TABLE.init_once(|| Mutex::new(active_table));
     driver::init(&mut frame_allocator);
-    /*println!(
-            r#"nothingos Copyright (C) 2024  Pantae
-    This program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
-    This is free software, and you are welcome to redistribute it
-    under certain conditions; type `show c' for details."#
-        );*/
+    //println!(
+    //r#"nothingos Copyright (C) 2024  Pantae
+    //This program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
+    //This is free software, and you are welcome to redistribute it
+    //under certain conditions; type `show c' for details."#
+    //    );
 }
 
 fn enable_write_protect_bit() {

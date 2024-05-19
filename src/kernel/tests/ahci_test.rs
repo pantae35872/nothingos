@@ -21,7 +21,7 @@ pub extern "C" fn start(multiboot_information_address: *mut BootInformation) -> 
     loop {}
 }
 
-const TEST_SIZE_IN_SECTOR: usize = 16; // 512 per sector
+const TEST_SIZE_IN_SECTOR: usize = 32; // 512 per sector
 #[test_case]
 fn simple_read_write() {
     let mut controller = ahci_driver::DRIVER

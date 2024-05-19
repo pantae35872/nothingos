@@ -28,6 +28,7 @@ x2apic = "0.4.3"
 uefi = "0.27.0"
 elf_rs = "0.3.1"
 bit_field = "0.10.2"
+bitfield-struct = "0.6.1"
 
 [dependencies.crc]
 version = "1.8.1"

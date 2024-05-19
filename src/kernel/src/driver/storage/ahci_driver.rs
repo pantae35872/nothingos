@@ -6,6 +6,7 @@ use core::{u32, usize};
 use alloc::alloc::alloc;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
+use bitfield_struct::bitfield;
 use conquer_once::spin::OnceCell;
 use spin::Mutex;
 use x86_64::{PhysAddr, VirtAddr};
@@ -42,11 +43,32 @@ const HBA_PXCMD_CR: u32 = 1 << 15;
 const FIS_TYPE_REG_H2D: u8 = 0x27;
 const HBA_PXIS_TFES: u32 = 1 << 30;
 
+#[bitfield(u16, order = Lsb)]
+pub struct HbaCmdHeaderByte2 {
+    #[bits(5)]
+    cfl: u8,
+    #[bits(1)]
+    a: bool,
+    #[bits(1)]
+    w: bool,
+    #[bits(1)]
+    p: bool,
+    #[bits(1)]
+    r: bool,
+    #[bits(1)]
+    b: bool,
+    #[bits(1)]
+    c: bool,
+    #[bits(1)]
+    rsv: bool,
+    #[bits(4)]
+    pmp: u8,
+}
+
 #[repr(C)]
 pub struct HbaCmdHeader {
     // DWORD 0
-    bit_0_7: VolatileCell<u8>,
-    bit_8_15: VolatileCell<u8>,
+    byte0_1: HbaCmdHeaderByte2,
     prdtl: VolatileCell<u16>,
     // DWORD 1
     prdbc: VolatileCell<u32>,
@@ -56,76 +78,51 @@ pub struct HbaCmdHeader {
 
 impl HbaCmdHeader {
     pub fn set_cfl(&mut self, value: &u8) {
-        if *value > 0b00001111 {
-            return;
-        }
-
-        self.bit_0_7.set(self.bit_0_7.get() & !(0b00001111));
-        self.bit_0_7.set(self.bit_0_7.get() | (*value & 0b00001111));
+        self.byte0_1.set_cfl(*value);
     }
 
     pub fn set_a(&mut self, value: &bool) {
-        if *value {
-            self.bit_0_7.set(self.bit_0_7.get() | (1 << 5));
-        } else {
-            self.bit_0_7.set(self.bit_0_7.get() & !(1 << 5));
-        }
+        self.byte0_1.set_a(*value);
     }
 
     pub fn set_w(&mut self, value: &bool) {
-        if *value {
-            self.bit_0_7.set(self.bit_0_7.get() | (1 << 6));
-        } else {
-            self.bit_0_7.set(self.bit_0_7.get() & !(1 << 6));
-        }
+        self.byte0_1.set_w(*value);
     }
 
     pub fn set_p(&mut self, value: &bool) {
-        if *value {
-            self.bit_0_7.set(self.bit_0_7.get() | (1 << 7));
-        } else {
-            self.bit_0_7.set(self.bit_0_7.get() & !(1 << 7));
-        }
+        self.byte0_1.set_p(*value);
     }
 
     pub fn set_r(&mut self, value: &bool) {
-        if *value {
-            self.bit_8_15.set(self.bit_8_15.get() | (1 << 0));
-        } else {
-            self.bit_8_15.set(self.bit_8_15.get() & !(1 << 0));
-        }
+        self.byte0_1.set_r(*value);
     }
     pub fn set_b(&mut self, value: &bool) {
-        if *value {
-            self.bit_8_15.set(self.bit_8_15.get() | (1 << 1));
-        } else {
-            self.bit_8_15.set(self.bit_8_15.get() & !(1 << 1));
-        }
+        self.byte0_1.set_b(*value);
     }
     pub fn set_c(&mut self, value: &bool) {
-        if *value {
-            self.bit_8_15.set(self.bit_8_15.get() | (1 << 2));
-        } else {
-            self.bit_8_15.set(self.bit_8_15.get() & !(1 << 2));
-        }
+        self.byte0_1.set_c(*value);
     }
 
     pub fn set_pmp(&mut self, value: &u8) {
-        if *value > 0b00001111 {
-            return;
-        }
-
-        self.bit_8_15.set(self.bit_8_15.get() & !(0b11110000));
-        self.bit_8_15
-            .set(self.bit_8_15.get() | !(*value & 0b00001111));
+        self.byte0_1.set_pmp(*value);
     }
+}
+
+#[bitfield(u8, order = Lsb)]
+pub struct FisRegH2DByte1 {
+    #[bits(4)]
+    pmport: u8,
+    #[bits(3)]
+    rsv: u8,
+    #[bits(1)]
+    command: bool,
 }
 
 #[repr(C)]
 pub struct FisRegH2D {
     // DWORD 0
     fis_type: VolatileCell<u8>, // FIS_TYPE_REG_H2D
-    byte_1: VolatileCell<u8>,   // Port multiplier
+    byte_1: FisRegH2DByte1,
     command: VolatileCell<u8>,  // Command register
     featurel: VolatileCell<u8>, // Feature register, 7:0
 
@@ -152,21 +149,8 @@ pub struct FisRegH2D {
 }
 
 impl FisRegH2D {
-    pub fn set_pmport(&mut self, value: &u8) {
-        if *value > 0b00001111 {
-            return;
-        }
-
-        self.byte_1.set(self.byte_1.get() & !(0b00001111));
-        self.byte_1.set(self.byte_1.get() | (*value & 0b00001111));
-    }
-
-    pub fn set_c(&mut self, value: &bool) {
-        if *value {
-            self.byte_1.set(self.byte_1.get() | (1 << 7));
-        } else {
-            self.byte_1.set(self.byte_1.get() & !(1 << 7));
-        }
+    pub fn set_command(&mut self, value: &bool) {
+        self.byte_1.set_command(*value);
     }
 }
 
@@ -192,33 +176,40 @@ pub struct HbaMem {
     vendor: [VolatileCell<u8>; 0x100 - 0xA0],
 }
 
+#[bitfield(u32, order = Msb)]
+struct HbaPRDTEntryDw3 {
+    #[bits(22)]
+    dbc: u32,
+    #[bits(9)]
+    rsv: u32,
+    #[bits(1)]
+    i: bool,
+}
+
 #[repr(C)]
 pub struct HbaPRDTEntry {
     dba: VolatileCell<PhysAddr>,
     rsv0: VolatileCell<u32>, // Reserved
 
     // DW3
-    dw3: VolatileCell<u32>, // Byte count, 4M max
-                            //rsv1: u32, // Reserved
-                            //i: u32,    // Interrupt on completion
+    dw3: HbaPRDTEntryDw3, // Byte count, 4M max
+                          //rsv1: u32, // Reserved
+                          //i: u32,    // Interrupt on completion
 }
 
 impl HbaPRDTEntry {
     pub fn set_i(&mut self, value: &bool) {
-        if *value {
-            self.dw3.set(self.dw3.get() | 1);
-        } else {
-            self.dw3.set(self.dw3.get() & 0);
-        }
+        self.dw3.set_i(*value);
     }
 
     pub fn set_dbc(&mut self, value: &u32) {
+        self.dw3.set_dbc(*value);
         //if *value > 0b00000000001111111111111111111111 {
         //    return;
         //}
-        self.dw3
-            .set(self.dw3.get() & !(0b11111111111111111111110000000000));
-        self.dw3.set(self.dw3.get() | (*value << 10));
+        //self.dw3
+        //    .set(self.dw3.get() & !(0b11111111111111111111110000000000));
+        //self.dw3.set(self.dw3.get() | (*value << 10));
     }
 }
 
@@ -277,8 +268,8 @@ impl AhciPort {
         unsafe { &mut *(self.hba_address.as_mut_ptr::<HbaPort>()) }
     }
 
-    fn cmd_header(&self) -> &mut HbaCmdHeader {
-        unsafe { &mut *(self.clb.as_mut_ptr::<HbaCmdHeader>()) }
+    fn cmd_header(&self, slot: usize) -> &mut HbaCmdHeader {
+        unsafe { &mut *(self.clb.as_mut_ptr::<HbaCmdHeader>().byte_add(slot)) }
     }
 
     fn cmd_tbl(&self) -> &mut HbaCmdTbl {
@@ -289,7 +280,6 @@ impl AhciPort {
     fn start_cmd(&mut self) {
         let port = self.hba_port();
         while (port.cmd.get() & HBA_PXCMD_CR) != 0 {}
-
         port.cmd.set(port.cmd.get() | HBA_PXCMD_FRE);
         port.cmd.set(port.cmd.get() | HBA_PXCMD_ST);
     }
@@ -424,13 +414,17 @@ impl AhciDrive {
         original_count: usize,
         buffer: &[u8],
         command: u8,
+        lba_mode: bool,
     ) -> Result<(), alloc::boxed::Box<crate::utils::oserror::OSError>> {
         let mut count = original_count;
         let port = self.port.lock();
         port.hba_port().is.set(u32::MAX);
-        let cmd_header = port.cmd_header();
+        let slot = port.find_cmdslot()?;
+        let cmd_header = port.cmd_header(slot);
         cmd_header.set_cfl(&((size_of::<FisRegH2D>() / size_of::<u32>()) as u8));
         cmd_header.set_w(&false);
+        cmd_header.set_c(&true);
+        cmd_header.set_p(&true);
         cmd_header.prdtl.set((((count - 1) >> 4) + 1) as u16);
         let cmdtbl = port.cmd_tbl();
         let mut buf_address = get_physical(VirtAddr::new(buffer.as_ptr() as u64)).unwrap();
@@ -438,7 +432,7 @@ impl AhciDrive {
         while i < cmd_header.prdtl.get() as usize - 1 {
             cmdtbl.get_prdt_entry(i).dba.set(buf_address);
             cmdtbl.get_prdt_entry(i).set_dbc(&(8 * 1024 - 1));
-            cmdtbl.get_prdt_entry(i).set_i(&true);
+            cmdtbl.get_prdt_entry(i).set_i(&false);
             buf_address += (4 * 1024) as u64;
             count -= 16;
             i += 1;
@@ -446,26 +440,29 @@ impl AhciDrive {
 
         cmdtbl.get_prdt_entry(i).dba.set(buf_address);
         cmdtbl.get_prdt_entry(i).set_dbc(&((count << 9) as u32 - 1));
-        cmdtbl.get_prdt_entry(i).set_i(&true);
+        cmdtbl.get_prdt_entry(i).set_i(&false);
 
         let cmdfis = unsafe { &mut *(cmdtbl.cfis.as_mut_ptr() as *mut FisRegH2D) };
+        unsafe { core::ptr::write_bytes(cmdfis as *mut FisRegH2D, 0, 1) }
         cmdfis.fis_type.set(FIS_TYPE_REG_H2D);
-        cmdfis.set_c(&true);
+        cmdfis.set_command(&true);
         cmdfis.command.set(command);
+        if lba_mode {
+            let lower = lba & 0xFFFFFFFF;
+            let upper = (lba & 0xFFFFFFFF00000000) >> 32;
+            cmdfis.lba0.set(lower as u8);
+            cmdfis.lba1.set((lower >> 8) as u8);
+            cmdfis.lba2.set((lower >> 16) as u8);
+            cmdfis.device.set(1 << 6);
+            cmdfis.lba3.set((lower >> 24) as u8);
+            cmdfis.lba4.set(upper as u8);
+            cmdfis.lba5.set((upper >> 8) as u8);
 
-        let lower = lba & 0xFFFFFFFF;
-        let upper = (lba & 0xFFFFFFFF00000000) >> 32;
-        cmdfis.lba0.set(lower as u8);
-        cmdfis.lba1.set((lower >> 8) as u8);
-        cmdfis.lba2.set((lower >> 16) as u8);
-        cmdfis.device.set(1 << 6);
-        cmdfis.lba3.set((lower >> 24) as u8);
-        cmdfis.lba4.set(upper as u8);
-        cmdfis.lba5.set((upper >> 8) as u8);
-
-        cmdfis.countl.set((original_count & 0xFF) as u8);
-        cmdfis.counth.set((original_count >> 8) as u8);
-
+            cmdfis.countl.set((original_count & 0xFF) as u8);
+            cmdfis.counth.set((original_count >> 8) as u8);
+        } else {
+            cmdfis.device.set(0);
+        }
         loop {
             if port.hba_port().tfd.get() & (0x80 | 0x08) != 0 {
                 continue;
@@ -474,9 +471,8 @@ impl AhciDrive {
         }
 
         port.hba_port().ci.set(1);
-
         loop {
-            if (port.hba_port().ci.get() & 1) == 0 {
+            if (port.hba_port().ci.get() & (1 << slot)) == 0 {
                 break;
             };
             if (port.hba_port().is.get() & HBA_PXIS_TFES) != 0 {
@@ -493,7 +489,7 @@ impl AhciDrive {
 
     pub fn identify(&mut self) -> Result<(), alloc::boxed::Box<crate::utils::oserror::OSError>> {
         let buf = [0u8; 512];
-        self.run_command(0, 1, &buf, 0xEC)?;
+        self.run_command(0, 1, &buf, 0xEC, false)?;
         self.identifier = Some(buf);
         Ok(())
     }
@@ -514,7 +510,7 @@ impl Drive for AhciDrive {
         buffer: &mut [u8],
         count: usize,
     ) -> Result<(), alloc::boxed::Box<crate::utils::oserror::OSError>> {
-        return self.run_command(from_sector, count, buffer, 0x25);
+        return self.run_command(from_sector, count, buffer, 0x25, true);
     }
 
     fn write(
@@ -523,7 +519,7 @@ impl Drive for AhciDrive {
         buffer: &[u8],
         count: usize,
     ) -> Result<(), alloc::boxed::Box<crate::utils::oserror::OSError>> {
-        return self.run_command(from_sector, count, buffer, 0x35);
+        return self.run_command(from_sector, count, buffer, 0x35, true);
     }
 }
 
@@ -553,7 +549,6 @@ impl AhciController {
             let mut drive = AhciDrive::new(port_address, abar.cap.get() as usize);
             if (pi & 1) != 0 {
                 let dt = drive.port.lock().check_type();
-
                 if dt == AHCI_DEV_SATA {
                     drive.port.lock().rebase();
                     drive.identify().expect("identify drive failed");
@@ -581,11 +576,11 @@ impl AhciController {
         let mut device: u32;
         for bus in 0..256 {
             for slot in 0..32 {
-                vendor = pci.read(&bus, &slot, &0, &0x00);
-                device = pci.read(&bus, &slot, &0, &0x02);
-                if (vendor == 0x29228086 && device == 0x2922)
-                    || (vendor == 0x28298086 && device == 0x2829)
-                    || (vendor == 0xa1038086 && device == 0xa103)
+                vendor = pci.read_config(&bus, &slot, &0, &(0x00 | 0x0));
+                device = pci.read_config(&bus, &slot, &0, &(0x00 | 0x02));
+                if (vendor == 0x8086 && device == 0x2922)
+                    || (vendor == 0x8086 && device == 0x2829)
+                    || (vendor == 0x15ad && device == 0x7e0)
                 {
                     return Some(pci.read(&bus, &slot, &0, &0x24).into());
                 }
