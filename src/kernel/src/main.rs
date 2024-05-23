@@ -14,29 +14,34 @@ extern crate spin;
 
 use core::arch::asm;
 
+use alloc::ffi::CString;
 use alloc::vec;
 use alloc::vec::Vec;
-use nothingos::driver::storage::ahci_driver;
+use nothingos::driver::storage::{ahci_driver, Drive};
 use nothingos::filesystem::partition::gpt_partition::GPTPartitions;
 use nothingos::{hlt_loop, println, BootInformation};
 use uguid::guid;
 
 #[no_mangle]
+fn sys_print(value: &str) {
+    let string = CString::new(value).unwrap();
+    unsafe {
+        asm!("int 0x80", in("rax") 1, in("rcx") string.into_raw());
+    }
+}
+
+#[no_mangle]
 pub extern "C" fn start(information_address: *mut BootInformation) -> ! {
     nothingos::init(information_address);
     println!("Hello worldaaa!!!!");
-    unsafe {
-        println!("aaa");
-        asm!("int 0x80", in("rax") 42);
-        let rax: u32;
-        asm!("mov {:r}, rax", out(reg) rax);
-        println!("Rax: {}", rax);
-    }
     let mut controller = ahci_driver::DRIVER
         .get()
         .expect("AHCI Driver is not initialize")
         .lock();
+    let mut abc = [0u8; 8192];
     let drive = controller.get_drive(&0).expect("Cannot get drive");
+    drive.read(0, &mut abc, 16).unwrap();
+    println!("{:?}", abc);
     let mut gpt = GPTPartitions::new(drive).expect("Error");
     gpt.format().unwrap();
     gpt.set_partiton(

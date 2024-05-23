@@ -4,15 +4,18 @@ use crate::gdt;
 use crate::hlt_loop;
 use crate::memory::paging::Page;
 use crate::memory::Frame;
+use crate::print;
 use crate::println;
 use crate::EntryFlags;
 use crate::MemoryController;
+use alloc::ffi::CString;
 use conquer_once::spin::OnceCell;
 use lazy_static::lazy_static;
 use spin::Mutex;
 use x2apic::lapic::xapic_base;
 use x2apic::lapic::LocalApic;
 use x2apic::lapic::LocalApicBuilder;
+use x2apic::lapic::TimerMode;
 use x86_64::structures::idt::PageFaultErrorCode;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
 use x86_64::VirtAddr;
@@ -289,7 +292,10 @@ struct FullInterruptStackFrame {
 }
 #[no_mangle]
 extern "C" fn inner_syscall(stack_frame: &mut FullInterruptStackFrame) {
-    println!("{:?}", stack_frame);
+    if stack_frame.rax == 1 {
+        let data = unsafe { CString::from_raw(stack_frame.rcx as *mut i8) };
+        print!("{}", data.to_str().unwrap());
+    }
 }
 
 extern "x86-interrupt" fn primary_ata_interrupt_handler(_stack_frame: InterruptStackFrame) {

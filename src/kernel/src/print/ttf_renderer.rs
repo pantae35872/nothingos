@@ -9,6 +9,7 @@ pub struct TtfRenderer {
     cache: BTreeMap<char, (Polygon, u32)>,
     parser: TtfParser<'static>,
     foreground_color: u32,
+    curr_line: u64,
 }
 
 impl TtfRenderer {
@@ -25,6 +26,7 @@ impl TtfRenderer {
             cache: BTreeMap::new(),
             parser,
             foreground_color,
+            curr_line: 0,
         }
     }
 
@@ -64,10 +66,10 @@ impl TtfRenderer {
         let (horizontal, _vertical) = graphics.get_res();
         for charactor in &self.data {
             if *charactor == ' ' {
-                offset += 15;
+                offset += 16;
                 if offset > horizontal as i32 {
                     y_offset += 1;
-                    offset = 15;
+                    offset = 16;
                 }
                 continue;
             }
@@ -87,20 +89,24 @@ impl TtfRenderer {
                     self.cache.get_mut(charactor).unwrap()
                 }
             };
-            polygon.move_by((y_offset as f32 * 30.0) - 70.0);
-            for pixel in polygon.render() {
-                graphics.plot(
-                    (pixel.x() as i32 + offset) as usize,
-                    pixel.y() as usize,
-                    self.foreground_color,
-                );
+
+            if y_offset >= self.curr_line {
+                polygon.move_by((y_offset as f32 * 20.0) - 80.0);
+                for pixel in polygon.render() {
+                    graphics.plot(
+                        (pixel.x() as i32 + offset) as usize,
+                        pixel.y() as usize,
+                        self.foreground_color,
+                    );
+                }
+                polygon.move_by(-((y_offset as f32 * 20.0) - 80.0));
             }
-            polygon.move_by(-((y_offset as f32 * 30.0) - 70.0));
-            offset += (*spaceing as i32 >> 5) + 0;
+            offset += (*spaceing as i32 >> 6) + 5;
             if offset > horizontal as i32 {
                 y_offset += 1;
                 offset = 0;
             }
         }
+        self.curr_line = y_offset;
     }
 }

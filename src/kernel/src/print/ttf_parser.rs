@@ -268,7 +268,7 @@ impl<'a> TtfParser<'a> {
         let mut data = Vec::new();
         let contours: Vec<Vec<Vector2>> = Self::implied_points(glyph)
             .iter_mut()
-            .map(|e| e.iter_mut().map(|x| *x / 32.0).collect())
+            .map(|e| e.iter_mut().map(|x| (*x / 64.0) * 1.5).collect())
             .collect();
 
         for points in &contours {
